@@ -12,23 +12,23 @@ class ApplicationLogger
   end
   
   def at_message_delivery_succeeded(msg, interface)
-    info(:at_message_id => msg.id, :message => "Try number #{msg.tries} for delivering message through interface #{interface} succeeded")
+    info(:at_message_id => msg.id, :message => 'Try #' + "#{msg.tries} for delivering message through interface #{interface} succeeded")
   end
   
   def at_message_delivery_exceeded_tries(msg, interface)
-    info(:at_message_id => msg.id, :message => "Try number #{msg.tries} for delivering message through interface #{interface} exceeded maximum number of tries")
+    info(:at_message_id => msg.id, :message => 'Try #' + "#{msg.tries} for delivering message through interface #{interface} exceeded maximum number of tries")
   end
   
   def ao_message_delivery_succeeded(msg, interface)
-    info(:ao_message_id => msg.id, :message => "Try number #{msg.tries} for delivering message through interface #{interface} succeeded")
+    info(:ao_message_id => msg.id, :message => 'Try #' + "#{msg.tries} for delivering message through interface #{interface} succeeded")
   end
   
   def ao_message_delivery_exceeded_tries(msg, interface)
-    info(:ao_message_id => msg.id, :message => "Try number #{msg.tries} for delivering message through interface #{interface} exceeded maximum number of tries")
+    info(:ao_message_id => msg.id, :message => 'Try #' + "#{msg.tries} for delivering message through interface #{interface} exceeded maximum number of tries")
   end
   
   def ao_message_received(msg, interface)
-    info(:ao_message_id => msg.id, :message => "Message received via interface #{interface}")
+    info(:ao_message_id => msg.id, :message => "Message received via #{interface} interface")
   end
   
   def ao_message_handled_by_channel(msg, channel)
@@ -41,6 +41,10 @@ class ApplicationLogger
   
   def at_message_received_via(msg, via)
     info(:at_message_id => msg.id, :message => "Message received via #{via}")
+  end
+  
+  def at_message_created_via_ui(msg)
+    info(:at_message_id => msg.id, :message => "Message created via user interface")
   end
   
   def error_routing_msg(ao_msg, e)
@@ -90,12 +94,12 @@ class ApplicationLogger
   
   def self.exception_in_channel_and_ao_message(channel, ao_msg, exception)
     logger = ApplicationLogger.new(channel.application_id)
-    logger.error(:channel_id => channel.id, :ao_message_id => ao_msg.id, :message => "Try number #{ao_msg.tries} for delivering message through #{channel.kind} channel '#{channel.name}' failed:" + exception.to_s)
+    logger.error(:channel_id => channel.id, :ao_message_id => ao_msg.id, :message => 'Try #' + "#{ao_msg.tries} for delivering message through #{channel.kind} channel '#{channel.name}' failed:" + exception.to_s)
   end
   
   def self.message_channeled(ao_msg, channel)
     logger = ApplicationLogger.new(channel.application_id)
-    logger.info(:channel_id => channel.id, :ao_message_id => ao_msg.id, :message => "Try number #{ao_msg.tries} for delivering message through #{channel.kind} channel '#{channel.name}' succeeded")
+    logger.info(:channel_id => channel.id, :ao_message_id => ao_msg.id, :message => 'Try #' + "#{ao_msg.tries} for delivering message through #{channel.kind} channel '#{channel.name}' succeeded")
   end
   
   def create(hash_or_message, severity)
@@ -104,7 +108,6 @@ class ApplicationLogger
     end
     hash_or_message[:application_id] = @application_id
     hash_or_message[:severity] = severity
-    puts hash_or_message if ENV['RAILS_ENV'] == 'test'
     ApplicationLog.create(hash_or_message)
   end
 end
