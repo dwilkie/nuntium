@@ -7,10 +7,13 @@ class AOMessage < ActiveRecord::Base
   belongs_to :application
   validates_presence_of :application
   
-  require 'message_common'
-  include Message
+  include MessageCommon
+  include MessageGetter
+  include MessageState
+
 end
 
+# TODO: This should not be here...
 class String
   # Returns this string's protocol or nil if it doesn't have one.
   #   'sms://foobar'.protocol => 'sms'
