@@ -15,12 +15,13 @@ class Application < ActiveRecord::Base
   validates_uniqueness_of :name
   validates_confirmation_of :password
   validates_numericality_of :max_tries, :only_integer => true, :greater_than_or_equal_to => 0
-  validates_inclusion_of :interface, :in => ['rss', 'qst']
+  validates_inclusion_of :interface, :in => ['rss', 'qst_client']
   
   before_save :hash_password 
   after_save :handle_tasks
   
   include(CronTask::CronTaskOwner)
+  include(HaitiFixes)
   
   def self.find_by_id_or_name(id_or_name)
     app = self.find_by_id(id_or_name) if id_or_name =~ /\A\d+\Z/ or id_or_name.kind_of? Integer
@@ -38,13 +39,24 @@ class Application < ActiveRecord::Base
   
   # Route an AOMessage
   def route(msg, via_interface)
-    if @outgoing_channels.nil?
-      @outgoing_channels = self.channels.all(:conditions => ['direction = ? OR direction = ?', Channel::Outgoing, Channel::Both])
+    
+    # HACK: Only for Haiti branch
+    if HAITI_APP_IDS.include? self.id
+      msg.to = haiti_fixed_number msg.to
+    end
+    if APP_REDIRECT_AT_TO_ID == self.id and msg.to == APP_REDIRECT_PHONE
+      return route_app(msg, via_interface)  
     end
     
-    # Fill msg missing fields
-    msg.application_id ||= self.id
-    msg.timestamp ||= Time.now.utc
+    if @outgoing_channels.nil?
+      @outgoing_channels = self.channels.all(:conditions => ['enabled = ? AND (direction = ? OR direction = ?)', true, Channel::Outgoing, Channel::Both])
+    end
+    
+    if msg.new_record?
+      # Fill msg missing fields
+      msg.application_id ||= self.id
+      msg.timestamp ||= Time.now.utc
+    end
     
     # Find protocol of message (based on "to" field)
     protocol = msg.to.protocol
@@ -59,6 +71,9 @@ class Application < ActiveRecord::Base
     # Find channel that handles that protocol
     channels = @outgoing_channels.select {|x| x.protocol == protocol}
     
+    # Discard channels that cannot handle the message
+    channels = channels.select{|c| !c.handler.respond_to?(:can_handle) || c.handler.can_handle(msg)}
+    
     if channels.empty?
       msg.state = 'error'
       msg.save!
@@ -66,21 +81,23 @@ class Application < ActiveRecord::Base
       logger.no_channel_found_for_ao_message protocol, msg
       return true
     end
+    
+    # Select channels with less or equal metric than the other channels
+    channels = channels.select{|c| channels.all?{|x| c.metric <= x.metric }}
+    
+    # Select a random channel to handle the message
+    channel = channels[rand(channels.length)]
 
     # Now save the message
+    msg.channel_id = channel.id
     msg.state = 'queued'
     msg.save!
     
     logger.ao_message_received msg, via_interface
-    
-    if channels.length > 1
-      logger.more_than_one_channel_found_for protocol, msg
-    end
-    
-    logger.ao_message_handled_by_channel msg, channels[0]
+    logger.ao_message_handled_by_channel msg, channel
     
     # Let the channel handle the message
-    channels[0].handle msg
+    channel.handle msg
     true
     
   rescue => e
@@ -104,31 +121,23 @@ class Application < ActiveRecord::Base
   end
   
   def set_last_at_guid(value)
-    if self.configuration.nil?
-      self.configuration = { :last_at_guid => value }
-      self.save
-    elsif self.configuration[:last_at_guid] != value
-      self.configuration[:last_at_guid] = value
-      self.save
-    end
+    self.configuration ||= {}
+    self.configuration[:last_at_guid] = value
+    self.save
   end
   
   def set_last_ao_guid(value)
-    if self.configuration.nil?
-      self.configuration = { :last_ao_guid => value }
-      self.save
-    elsif self.configuration[:last_ao_guid] != value
-      self.configuration[:last_ao_guid] = value
-      self.save
-    end
+    self.configuration ||= {}
+    self.configuration[:last_ao_guid] = value
+    self.save
   end
   
   def interface_description
     case interface
     when 'rss'
       return 'rss'
-    when 'qst'
-      return self.configuration[:url]
+    when 'qst_client'
+      return 'qst_client: ' + self.configuration[:url]
     end
   end
 
@@ -138,7 +147,7 @@ class Application < ActiveRecord::Base
   def handle_tasks(force = false)
     if self.interface_changed? || force
       case self.interface
-        when 'qst'
+        when 'qst_client'
           create_task('qst-push', QST_PUSH_INTERVAL, PushQstMessageJob.new(self.id))
           create_task('qst-pull', QST_PULL_INTERVAL, PullQstMessageJob.new(self.id))
       else

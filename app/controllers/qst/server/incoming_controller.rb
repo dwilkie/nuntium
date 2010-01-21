@@ -1,12 +1,12 @@
 require 'rexml/document'
 
-class IncomingController < QSTController
+class IncomingController < QSTServerController
   # HEAD /qst/:application_id/incoming
   def index
     return head(:not_found) if !request.head?
     
     msg = @application.last_at_message
-    etag = msg.nil? ? nil : msg.id
+    etag = msg.nil? ? nil : msg.guid
     head :ok, 'ETag' => etag
   end
   
@@ -25,10 +25,13 @@ class IncomingController < QSTController
       msg.body = elem.elements['text'].text
       msg.guid = elem.attributes['id']
       msg.timestamp = Time.parse(elem.attributes['when'])
+      msg.channel_id = @channel.id
       msg.state = 'queued'
       msg.save
       
-      last_id = msg.id
+      @application.logger.at_message_received_via_channel msg, @channel
+      
+      last_id = msg.guid
     end
     
     head :ok, 'ETag' => last_id

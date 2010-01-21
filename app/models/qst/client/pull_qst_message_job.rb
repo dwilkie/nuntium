@@ -2,7 +2,6 @@ class PullQstMessageJob
   
   BATCH_SIZE = 10
   
-  require 'qst_common'
   include ClientQstJob
   
   def initialize(app_id)
@@ -15,16 +14,17 @@ class PullQstMessageJob
     require 'builder'
 
     app = Application.find_by_id(@application_id)
+    cfg = ClientQstConfiguration.new(app)
     err = validate_app(app)
     return err unless err.nil?
 
     # Create http requestor and uri
-    http, path = create_http app, 'outgoing' 
+    http, path = create_http cfg, 'outgoing' 
     if http.nil? then return :error_initializing_http end
     path += "?max=#{BATCH_SIZE}"  
     
     # Get messages from server
-    response = request_messages(app, http, path) 
+    response = request_messages(app, cfg, http, path) 
     
     # Handle different responses
     if response.nil?
@@ -44,7 +44,7 @@ class PullQstMessageJob
     begin
       # Process successfully downloaded messages
       AOMessage.parse_xml response.body do |msg|
-        app.route msg, 'qst'
+        app.route msg, 'qst_client'
         last_new_id = msg.guid
         size+= 1
       end
@@ -67,10 +67,10 @@ class PullQstMessageJob
   end
   
   # Creates a get request with proper authentication
-  def request_messages app, http, path
-    last_id = app.configuration[:last_ao_guid]
-    user = app.configuration[:cred_user]
-    pass = app.configuration[:cred_pass]
+  def request_messages app, cfg, http, path
+    last_id = cfg.last_ao_guid
+    user = cfg.user
+    pass = cfg.pass
     request = Net::HTTP::Get.new path
     request.basic_auth(user, pass) unless user.nil? or pass.nil?
     request['if-none-match'] = last_id unless last_id.nil?
@@ -82,7 +82,7 @@ class PullQstMessageJob
   
   # Enqueues jobs of this class for each qst push interface
   def self.enqueue_for_all_interfaces
-    Application.find_all_by_interface('qst').each do |app|
+    Application.find_all_by_interface('qst_client').each do |app|
       job = PullQstMessageJob.new(app.id)
       Delayed::Job.enqueue job
     end

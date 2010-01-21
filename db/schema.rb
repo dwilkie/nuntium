@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20100114032149) do
+ActiveRecord::Schema.define(:version => 20100121054914) do
 
   create_table "ao_messages", :force => true do |t|
     t.string   "from"
@@ -24,6 +24,7 @@ ActiveRecord::Schema.define(:version => 20100114032149) do
     t.string   "subject"
     t.string   "state",               :default => "pending", :null => false
     t.string   "channel_relative_id"
+    t.integer  "channel_id"
   end
 
   add_index "ao_messages", ["guid"], :name => "index_ao_messages_on_guid"
@@ -63,6 +64,7 @@ ActiveRecord::Schema.define(:version => 20100114032149) do
     t.string   "subject"
     t.string   "state",               :default => "pending", :null => false
     t.string   "channel_relative_id"
+    t.integer  "channel_id"
   end
 
   create_table "channels", :force => true do |t|
@@ -74,6 +76,8 @@ ActiveRecord::Schema.define(:version => 20100114032149) do
     t.string   "configuration"
     t.string   "protocol"
     t.integer  "direction"
+    t.boolean  "enabled",        :default => true
+    t.integer  "metric",         :default => 100
   end
 
   create_table "clickatell_message_parts", :force => true do |t|
