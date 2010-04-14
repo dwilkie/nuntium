@@ -1,18 +1,16 @@
 class Service
 
-  def initialize(controller = nil)
-    @controller = controller
+  def initialize
+    @is_running = true
     
-    if @controller.nil?
-      ["INT", "EXIT", "TERM", "KILL"].each do |signal|
-        trap(signal) { stop; exit }
-      end
+    @previous_trap = trap("TERM") do
+      stop
+      @previous_trap.call if @previous_trap 
     end
   end
   
   def running?
-    return true if @controller.nil?
-    @controller.running?
+    @is_running
   end
   
   def daydream(seconds)
@@ -23,10 +21,11 @@ class Service
   end
   
   def logger
-    RAILS_DEFAULT_LOGGER
+    Rails.logger
   end
   
   def stop
+    @is_running = false
   end
   
   # Defines a start method that executes the given block and sleeps

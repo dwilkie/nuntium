@@ -5,17 +5,17 @@ module CronDaemonRun
     to_run = CronTask.to_run
     to_run.each { |task| enqueue task }
     rescue => err
-      RAILS_DEFAULT_LOGGER.error "Error running scheduler: #{err}"
+      Rails.logger.error "Error running scheduler: #{err}"
     else
-      RAILS_DEFAULT_LOGGER.debug "Scheduler executed successfully enqueuing #{to_run.size} task(s)."
+      Rails.logger.debug "Scheduler executed successfully enqueuing #{to_run.size} task(s)."
     ensure
       CronTask.set_next_run(to_run) unless to_run.nil?
   end
 
   # Enqueue a descriptor for the specified task
   def enqueue(task)
-    Delayed::Job.enqueue CronTaskDescriptor.new(task.id)
-    RAILS_DEFAULT_LOGGER.debug "Enqueued job for task '#{task.id}'"
+    Queues.publish_cron_task CronTaskDescriptor.new(task.id)
+    Rails.logger.debug "Enqueued job for task '#{task.id}'"
   end
 
 end

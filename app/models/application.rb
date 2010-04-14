@@ -149,6 +149,12 @@ class Application < ActiveRecord::Base
     end
   end
   
+  def alert(message)
+    # TODO send an email somehow...
+    Rails.logger.info "Received alert for application #{self.name}: #{message}"
+    logger.error message.to_s
+  end
+  
   def logger
     if @logger.nil?
       @logger = ApplicationLogger.new(self.id)
@@ -393,7 +399,7 @@ class MessageRouter
   
   def push_message_into(channel)
     # Save the message
-    @msg.channel_id = channel.id
+    @msg.channel = channel
     @msg.state = 'queued'
     @msg.save!
     
