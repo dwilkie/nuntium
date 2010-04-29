@@ -18,7 +18,6 @@ class Application < ActiveRecord::Base
   validates_presence_of :delivery_ack_url, :unless => Proc.new {|app| app.delivery_ack_method == 'none'}
   
   serialize :configuration, Hash
-  serialize :ao_rules
   
   before_save :hash_password
   
@@ -94,8 +93,7 @@ class Application < ActiveRecord::Base
     channels = channels.select{|c| channels.all?{|x| c.priority <= x.priority }}
     
     # Select a random channel to handle the message
-    channel = channels[rand(channels.length)]
-    channel.route_ao msg, via_interface
+    channels.rand.route_ao msg, via_interface
     true
   rescue => e
     # Log any errors and return false
