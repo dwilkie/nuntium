@@ -31,6 +31,9 @@ Rails::Initializer.run do |config|
   config.gem 'ruby-smpp', :lib => 'smpp', :version => '0.2.1'
   config.gem "eventmachine"
   config.gem 'amqp'
+  config.gem 'memcached'
+  config.gem 'faker'
+  config.gem 'machinist'
   config.gem 'xmpp4r'
 
   # Only load the plugins named here, in the order given (default is alphabetical).
@@ -79,8 +82,9 @@ else
   TwitterConsumerConfig = nil
 end
 
-# Disable application creation from UI
-ApplicationCreationDisabled = false
+# Disable account creation from UI
+AccountCreationDisabled = false
 
 # Include extensions
+require 'hash'
 require 'string'

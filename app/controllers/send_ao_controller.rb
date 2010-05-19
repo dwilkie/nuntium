@@ -1,29 +1,23 @@
-class SendAoController < ApplicationController
+class SendAoController < ApplicationAuthenticatedController
 
-  before_filter :authenticate
-  
+  # GET /send_ao/:account_name
   def create
-    msg = AOMessage.new(
-      :application_id => @application.id,
-      :from => params[:from],
-      :to => params[:to],
-      :subject => params[:subject],
-      :body => params[:body],
-      :guid => params[:guid]
-      )
-    @application.route msg, 'http'
+    msg = AOMessage.new :account_id => @account.id
+    params.each do |key, value|
+      if [:from, :to, :subject, :body, :guid].include? key.to_sym
+        # Normal attribute
+        msg.send "#{key}=", value
+      else
+        # Custom attribute
+        msg.custom_attributes[key] = value
+      end
+    end
+    @application.route_ao msg, 'http'
     
-    if msg.state == 'error'
+    if msg.state == 'failed'
       render :text => "error: #{msg.id}"
     else
       render :text => "id: #{msg.id}"
-    end
-  end
-
-  def authenticate
-    authenticate_or_request_with_http_basic do |username, password|
-      @application = Application.find_by_name username
-      !@application.nil? && @application.authenticate(password)
     end
   end
 

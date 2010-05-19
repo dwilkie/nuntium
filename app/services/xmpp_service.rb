@@ -84,7 +84,7 @@ class XmppService < Service
           ao.state = 'failed'
           ao.save!
           
-          @channel.application.logger.exception_in_channel_and_ao_message @channel, ao, "Code #{msg.error.code} - #{msg.error.text}"
+          @channel.logger.exception_in_channel_and_ao_message @channel, ao, "Code #{msg.error.code} - #{msg.error.text}"
         else
           Rails.logger.debug "Received error message: #{msg}"
         end
@@ -97,7 +97,7 @@ class XmppService < Service
       at.to = msg.to.to_s.with_protocol 'xmpp'
       at.subject = msg.subject
       at.body = msg.body
-      @channel.accept at
+      @channel.route_at at
     end
   end
   

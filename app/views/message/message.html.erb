@@ -68,6 +68,22 @@
     <td><b>State:</b></td>
     <td><%= @msg.state %></td>
   </tr>
+  <% if @msg.state == 'broadcasted' %>
+    <tr valign="baseline">
+      <td><b>Broadcasted copies:</b></td>
+      <td>
+        <%= AOMessage.all(:conditions => ['parent_id = ?', @msg.id]).map do |b|
+          link_to b.id, {:controller => :message, :action => :view_ao_message, :id => b.id}, :target => '_blank'
+        end.join(', ') %>
+      </td>
+    </tr>
+  <% end %>
+  <% if @msg.class == AOMessage and @msg.parent_id and parent = @msg.class.find_by_id(@msg.parent_id)%>
+    <tr valign="baseline">
+      <td><b>Original:</b></td>
+      <td><%= link_to parent.id, {:controller => :message, :action => :view_ao_message, :id => parent.id}, :target => '_blank' %></td>
+    </tr>
+  <% end %>
   <% if @msg.class == AOMessage && !@msg.channel.nil?
     hash = @msg.channel.handler.more_info(@msg)
     hash.each_pair do |key, value|
@@ -82,3 +98,35 @@
   %>
 </table>
 </div>
+
+<% unless @msg.custom_attributes.empty?
+  countries = Country.all
+  carriers = Carrier.all
+  %>
+  <h4><%= link_to_function 'Custom Attributes', "toggle('custom_attributes')" %></h4>
+
+  <div id="custom_attributes">
+  <table class="table">
+    <% @msg.custom_attributes.each_multivalue do |key, values|
+      values.map! do |value|
+        case key
+        when 'country'
+          result = countries.select{|x| x.iso2.casecmp(value) == 0}.first
+          result ? result.name : value 
+        when 'carrier'
+          result = carriers.select{|x| x.guid == value}.first
+          result ? result.name : value
+        else
+          value
+        end
+      end
+      values = values.join(', ')
+      %>
+      <tr valign="baseline">
+        <td><b><%= key %>:</b></td>
+        <td><%= values %></td>
+      </tr>
+    <% end %>
+  </table>
+  </div>
+<% end %>

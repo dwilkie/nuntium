@@ -1,10 +1,12 @@
-<%= edit_channel_header %>
+<%= render :partial => 'edit_channel_header' %>
 
 <% form_for_channel do |f| %>
   <%= f.error_messages %>
   <%= f.hidden_field :direction, :value => Channel::Bidirectional %>
-  <%= edit_channel_name f %>
-  <%= edit_channel_protocol f, 'xmpp' %>
+  <%= render :partial => 'edit_name', :locals => {:f => f} %>
+  <%= render :partial => 'edit_protocol', :locals => {:f => f, :default => 'xmpp'} %>
+  <%= render :partial => 'edit_priority', :locals => {:f => f} %>
+  <%= render :partial => 'edit_application', :locals => {:f => f} %>
   <% f.fields_for :configuration do |c| %>
     <p>
     <%= c.label :user %><br/>
@@ -31,6 +33,8 @@
     <%= c.text_field :resource, :value => @channel[:configuration][:resource] %>
     </p>
   <% end %>
+  <%= render :partial => 'shared/edit_custom_attributes', :locals => {:f => f, :entity => @channel, :as_restriction => true} %>
+  <%= render :partial => 'edit_at_rules', :locals => {:f => f} %>
   <%= channel_submit_tag %>
 <% end %>
 
