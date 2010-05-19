@@ -32,6 +32,10 @@ Rails::Initializer.run do |config|
   config.gem "eventmachine"
   config.gem 'amqp'
   config.gem 'memcached'
+  config.gem 'faker'
+  config.gem 'machinist'
+  config.gem 'xmpp4r'
+  config.gem 'cucumber'
 
   # Only load the plugins named here, in the order given (default is alphabetical).
   # :all can be used as a placeholder for all plugins not explicitly named
@@ -62,7 +66,7 @@ Rails::Initializer.run do |config|
   # Start AMQP after rails loads:
   config.after_initialize {
     Thread.new { EM.run {} }
-    
+  
     require 'amqp'
     amqp_yaml = YAML.load_file("#{RAILS_ROOT}/config/amqp.yml")
     $amqp_config = amqp_yaml[ENV['RAILS_ENV'] || 'development']

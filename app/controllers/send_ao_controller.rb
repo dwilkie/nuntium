@@ -12,6 +12,7 @@ class SendAoController < ApplicationAuthenticatedController
         msg.custom_attributes[key] = value
       end
     end
+    
     @application.route_ao msg, 'http'
     
     if msg.state == 'failed'

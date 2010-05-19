@@ -100,10 +100,6 @@ class Channel < ActiveRecord::Base
     self.handler.handle msg
   end
   
-  def handle_now(msg)
-    self.handler.handle_now msg
-  end
-  
   def route_at(msg)
     account.route_at msg, self
   end
@@ -265,8 +261,9 @@ class Channel < ActiveRecord::Base
       else
         self.handler.on_disable
       end
+    else
+      self.handler.on_changed
     end
-    self.handler.on_changed
     true
   end
 
