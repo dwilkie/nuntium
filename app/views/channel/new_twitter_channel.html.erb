@@ -1,4 +1,4 @@
-<%= edit_channel_header %>
+<h4>Create new Twitter channel</h4>
 
 <% if TwitterConsumerConfig.nil? %>
   <%= render :partial => 'twitter_configuration_missing' %>
@@ -6,13 +6,19 @@
 
 <% form_for :channel, :url => { :controller => 'twitter', :action => :create_twitter_channel } do |f| %>
   <%= f.error_messages %>
-  <%= f.hidden_field :direction, :value => Channel::Bidirectional %>
-  <%= edit_channel_name f %>
-  <%= edit_channel_protocol f, 'twitter' %>
+  <%= f.hidden_field :direction, :value => Channel::Both %>
+  <p>
+  <%= f.label :name %><br/>
+  <%= f.text_field :name %>
+  </p>
+  <p>
+  <%= f.label :protocol %><br/>
+  <%= f.text_field :protocol, :value => 'twitter' %>
+  </p>
   <% f.fields_for :configuration do |c| %>
     <p>
     Welcome message for new followers (leave blank if not desired)<br/>
-    <%= c.text_field :welcome_message, :value => @channel.configuration[:welcome_message] %>
+    <%= c.text_field :welcome_message %>
     </p>
   <% end %>
   <p>

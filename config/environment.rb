@@ -22,6 +22,8 @@ Rails::Initializer.run do |config|
   # config.gem "hpricot", :version => '0.6', :source => "http://code.whytheluckystiff.net"
   # config.gem "aws-s3", :lib => "aws/s3"
   config.gem "mocha"
+  config.gem "sqlite3-ruby", :lib => "sqlite3"
+  config.gem 'collectiveidea-delayed_job', :lib => 'delayed_job', :source => 'http://gems.github.com'
   config.gem 'test-unit', :lib => 'test/unit'
   config.gem "thoughtbot-shoulda", :lib => "shoulda", :source => "http://gems.github.com"
   config.gem "tmail"
@@ -29,8 +31,6 @@ Rails::Initializer.run do |config|
   config.gem "guid"
   config.gem 'twitter', :version => '0.6.15'  
   config.gem 'ruby-smpp', :lib => 'smpp', :version => '0.2.1'
-  config.gem "eventmachine"
-  config.gem 'amqp'
 
   # Only load the plugins named here, in the order given (default is alphabetical).
   # :all can be used as a placeholder for all plugins not explicitly named
@@ -51,23 +51,17 @@ Rails::Initializer.run do |config|
   # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}')]
   # config.i18n.default_locale = :de
     
-  $log_path = "#{RAILS_ROOT}/log/#{ENV['RAILS_ENV'] || 'development'}.log" if $log_path.nil?
+  $log_path = "#{RAILS_ROOT}/log/#{ENV['RAILS_ENV']}.log" if $log_path.nil?
   
-  config.log_path = $log_path
-  config.logger = Logger.new($log_path)
-  config.logger.level = Logger.const_get(config.log_level.to_s.upcase)
-  config.logger.formatter = Logger::Formatter.new
-  
-  # Start AMQP after rails loads:
-  config.after_initialize {
-    Thread.new { EM.run {} }
-  
-    require 'amqp'
-    amqp_yaml = YAML.load_file("#{RAILS_ROOT}/config/amqp.yml")
-    $amqp_config = amqp_yaml[ENV['RAILS_ENV'] || 'development']
-    $amqp_config.symbolize_keys!
-    AMQP.start($amqp_config)
-  }
+  if RUBY_PLATFORM.include?('mswin')
+    require 'nuntium_logger'
+    config.logger = NuntiumLogger.new $log_path, 'rails'
+  else
+    config.log_path = $log_path
+    config.logger = Logger.new($log_path)
+    config.logger.level = Logger.const_get(config.log_level.to_s.upcase)
+    config.logger.formatter = Logger::Formatter.new
+  end
   
 end
 
@@ -83,3 +77,4 @@ ApplicationCreationDisabled = false
 
 # Include extensions
 require 'string'
+require 'delayed/job'

@@ -6,7 +6,8 @@
 # and recreated between test runs.  Don't rely on the data there!
 config.cache_classes = true
 
-# config.logger.level = INFO
+# Set log error to DEBUG
+config.logger.level = Log4r::DEBUG if RUBY_PLATFORM.include?('mswin')
 
 # Log error messages when you accidentally call methods on nil.
 config.whiny_nils = true

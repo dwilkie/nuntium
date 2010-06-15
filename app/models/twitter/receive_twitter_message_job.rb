@@ -21,17 +21,12 @@ class ReceiveTwitterMessageJob
       @client = TwitterChannelHandler.new_client(@config)
       download_new_messages
       follow_and_send_welcome_to_new_followers
-    rescue Twitter::Unauthorized => ex
-      @channel.alert "#{ex}"
-      
-      @channel.enabled = false
-      @channel.save!
-      return
+    rescue => e
+      ApplicationLogger.exception_in_channel @channel, e
+      raise
     ensure
       @status.save unless @status.nil?
     end
-  rescue => ex
-    ApplicationLogger.exception_in_channel @channel, ex if @channel
   end
   
   def download_new_messages

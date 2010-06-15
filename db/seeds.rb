@@ -6,5 +6,4 @@
 #   cities = City.create([{ :name => 'Chicago' }, { :name => 'Copenhagen' }])
 #   Major.create(:name => 'Daley', :city => cities.first)
 
-# Create the worker queue for cron tasks
-WorkerQueue.create!(:queue_name => 'cron_tasks_queue', :working_group => 'slow', :ack => false)
+require 'digest/sha2'

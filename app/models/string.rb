@@ -26,7 +26,9 @@ class String
     end
   end
   
-  alias start_with? starts_with?
+  def starts_with?(str)
+    self[0...str.length] == str
+  end
   
   def integer?
     Integer(self) rescue nil

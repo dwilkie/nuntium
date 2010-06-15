@@ -1,9 +1,16 @@
 require 'twitter'
 
-class TwitterChannelHandler < GenericChannelHandler
+class TwitterChannelHandler < ChannelHandler
+  def handle(msg)
+    Delayed::Job.enqueue create_job(msg)
+  end
   
-  def job_class
-    SendTwitterMessageJob
+  def handle_now(msg)
+    create_job(msg).perform
+  end
+  
+  def create_job(msg)
+    SendTwitterMessageJob.new(@channel.application_id, @channel.id, msg.id)
   end
   
   def update(params)
@@ -35,13 +42,11 @@ class TwitterChannelHandler < GenericChannelHandler
   end
   
   def on_enable
-    super
     @channel.create_task 'twitter-receive', TWITTER_RECEIVE_INTERVAL, 
       ReceiveTwitterMessageJob.new(@channel.application_id, @channel.id)
   end
   
   def on_disable
-    super
     @channel.drop_task('twitter-receive')
   end
   

@@ -5,7 +5,7 @@ class ChannelController < AuthenticatedController
   after_filter :compress, :only => [:new_channel, :edit_channel]
   
   def new_channel
-    @channel = Channel.new :configuration => {} unless @channel
+    @channel = flash[:channel] if not flash[:channel].nil? 
     kind = params[:kind]
     render "new_#{kind}_channel"
   end
@@ -32,11 +32,7 @@ class ChannelController < AuthenticatedController
   end
   
   def edit_channel
-    if File.exists? "#{view_paths}/channel/edit_#{@channel.kind}_channel.html.erb"
-      render "edit_#{@channel.kind}_channel"
-    else
-      render "new_#{@channel.kind}_channel"
-    end
+    render "edit_#{@channel.kind}_channel"
   end
   
   def update_channel
@@ -78,7 +74,7 @@ class ChannelController < AuthenticatedController
     # queued messages in those channels.
     requeued_messages_count = 0;
     
-    other_channels = @application.channels.all(:conditions => ['enabled = ? AND protocol = ? AND (direction = ? OR direction = ?)', true, @channel.protocol, Channel::Outgoing, Channel::Bidirectional])
+    other_channels = @application.channels.all(:conditions => ['enabled = ? AND protocol = ? AND (direction = ? OR direction = ?)', true, @channel.protocol, Channel::Outgoing, Channel::Both])
     
     if !other_channels.empty?
       queued_messages = AOMessage.all(:conditions => ['channel_id = ? AND state = ?', @channel.id, 'queued'])

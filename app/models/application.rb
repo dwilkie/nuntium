@@ -23,8 +23,6 @@ class Application < ActiveRecord::Base
   
   before_save :hash_password 
   after_save :handle_tasks
-  after_create :create_worker_queue
-  after_save :bind_queue
   
   include(CronTask::CronTaskOwner)
   
@@ -44,7 +42,7 @@ class Application < ActiveRecord::Base
     check_modified
   
     if @outgoing_channels.nil?
-      @outgoing_channels = self.channels.all(:conditions => ['enabled = ? AND (direction = ? OR direction = ?)', true, Channel::Outgoing, Channel::Bidirectional])
+      @outgoing_channels = self.channels.all(:conditions => ['enabled = ? AND (direction = ? OR direction = ?)', true, Channel::Outgoing, Channel::Both])
     end
     
     if msg.new_record?
@@ -141,7 +139,7 @@ class Application < ActiveRecord::Base
     
     # Check if callback interface is configured
     if self.interface == 'http_post_callback'
-      Queues.publish_application self, SendPostCallbackMessageJob.new(msg.application_id, msg.id)
+      Delayed::Job.enqueue SendPostCallbackMessageJob.new(msg.application_id, msg.id)
     end
     
     if 'ui' == via_channel
@@ -149,12 +147,6 @@ class Application < ActiveRecord::Base
     else
       logger.at_message_received_via_channel msg, via_channel if !via_channel.nil?
     end
-  end
-  
-  def alert(message)
-    # TODO send an email somehow...
-    Rails.logger.info "Received alert for application #{self.name}: #{message}"
-    logger.error message.to_s
   end
   
   def logger
@@ -217,14 +209,6 @@ class Application < ActiveRecord::Base
         drop_task('qst-pull')
       end
     end
-  end
-  
-  def create_worker_queue
-    WorkerQueue.create!(:queue_name => Queues.application_queue_name_for(self), :working_group => 'fast', :ack => true)
-  end
-  
-  def bind_queue
-    Queues.bind_application self
   end
   
   private
@@ -409,7 +393,7 @@ class MessageRouter
   
   def push_message_into(channel)
     # Save the message
-    @msg.channel = channel
+    @msg.channel_id = channel.id
     @msg.state = 'queued'
     @msg.save!
     

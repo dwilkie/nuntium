@@ -15,9 +15,9 @@ class PushQstChannelMessageJob
     require 'builder'
     
     app = Application.find_by_id(@application_id)
-    @channel = Channel.find_by_id(@channel_id)
-    cfg = ClientQstConfiguration.new @channel
-    err = validate_channel(@channel)
+    channel = Channel.find_by_id(@channel_id)
+    cfg = ClientQstConfiguration.new channel
+    err = validate_channel(channel)
     return err if not err.nil?
 
     # Create http requestor and uri
@@ -33,13 +33,13 @@ class PushQstChannelMessageJob
     
     # If there are no newer messages, finish
     if new_msgs.length == 0
-      Rails.logger.info "Push QST in channel #{@channel_id}: no new messages"
+      RAILS_DEFAULT_LOGGER.info "Push QST in channel #{@channel_id}: no new messages"
       cfg.set_last_ao_guid(last_msg.guid) unless last_msg.nil?
       return :success
     end
 
     # Push the new messages to the endpoint
-    last_id = post_msgs app, @channel, cfg, http, path, new_msgs
+    last_id = post_msgs app, channel, cfg, http, path, new_msgs
     
     # Mark new status for messages based on post result increasing retries
     AOMessage.update_msgs_status new_msgs, cfg.max_tries, last_id
@@ -58,6 +58,7 @@ class PushQstChannelMessageJob
     else
       return :success_pending
     end
+    
   end
   
   # Obtains last id from server if necessary
@@ -72,13 +73,7 @@ class PushQstChannelMessageJob
         request = Net::HTTP::Head.new path
         request.basic_auth(user, pass) unless user.nil? or pass.nil?
         response = http.request request
-        if response.code == "401"
-          @channel.alert "Unauthorized: invalid credentials"
-    
-          @channel.enabled = false
-          @channel.save!
-          return :error_obtaining_last_id
-        elsif not response.code[0,1] == '2'
+        if not response.code[0,1] == '2'
           cfg.logger.error_obtaining_last_id response.message
           return :error_obtaining_last_id
         else
@@ -116,13 +111,7 @@ class PushQstChannelMessageJob
     request['Content-Type'] = 'text/xml'
     response = http.request request, xml
     # Handle response
-    if response.code == "401"
-      @channel.alert "Unauthorized: invalid credentials"
-    
-      @channel.enabled = false
-      @channel.save!
-      return nil
-    elsif not response.code[0,1] == '2'
+    if not response.code[0,1] == '2'
       cfg.logger.error_posting_msgs response.message
       return nil
     end
@@ -132,9 +121,9 @@ class PushQstChannelMessageJob
   else
     etag = response['etag']
     if etag.nil?
-      Rails.logger.info "Push QST in application #{app.name} channel #{channel.name}: posted '#{msgs.length}' messages to server"
+      RAILS_DEFAULT_LOGGER.info "Push QST in application #{app.name} channel #{channel.name}: posted '#{msgs.length}' messages to server"
     else
-      Rails.logger.info "Push QST in application #{app.name} channel #{channel.name}: posted '#{msgs.length}' messages to server up to id '#{etag}'"
+      RAILS_DEFAULT_LOGGER.info "Push QST in application #{app.name} channel #{channel.name}: posted '#{msgs.length}' messages to server up to id '#{etag}'"
     end
     return etag
   end

@@ -1,29 +1,52 @@
 require 'test_helper'
 
 class Pop3ChannelHandlerTest < ActiveSupport::TestCase
-  def setup
-    @app = Application.create(:name => 'app', :password => 'foo')
-    @chan = Channel.new(:application_id => @app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
-    @chan.configuration = {:host => 'host', :port => '430', :user => 'user', :password => 'password' }
+  test "should not save if host is blank" do
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:port => 430, :user => 'user', :password => 'password' }
+    assert !chan.save
   end
-
-  [:host, :user, :password, :port].each do |field|
-    test "should validate configuration presence of #{field}" do
-      assert_validates_configuration_presence_of @chan, field
-    end
+  
+  test "should not save if port is blank" do
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :user => 'user', :password => 'password' }
+    assert !chan.save
+  end
+  
+  test "should not save if user is blank" do
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :password => 'password' }
+    assert !chan.save
+  end
+  
+  test "should not save if password is blank" do
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :port => 430, :user => 'user' }
+    assert !chan.save
   end
   
   test "should not save if port is not a number" do
-    @chan.configuration[:port] = 'foo'
-    assert !@chan.save
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :port => 'foo', :user => 'user', :password => 'password' }
+    assert !chan.save
   end
   
   test "should not save if port is negative" do
-    @chan.configuration[:port] = -430
-    assert !@chan.save
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :port => -430, :user => 'user', :password => 'password' }
+    assert !chan.save
   end
   
   test "should save" do
-    assert @chan.save
+    app = Application.create(:name => 'app', :password => 'foo')
+    chan = Channel.new(:application_id => app.id, :name => 'chan', :kind => 'pop3', :protocol => 'sms')
+    chan.configuration = {:host => 'host', :port => '430', :user => 'user', :password => 'password' }
+    assert chan.save
   end
 end

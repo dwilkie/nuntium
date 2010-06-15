@@ -12,7 +12,8 @@ class TwitterController < AuthenticatedController
     @channel = Channel.new(chan)
     if @channel.name.blank?
       @channel.errors.add(:name, "can't be blank")
-      return render "channel/new_twitter_channel"
+      flash[:channel] = @channel
+      return redirect_to :controller => :home, :action => :new_channel
     end
     
     oauth = TwitterChannelHandler.new_oauth
@@ -53,7 +54,7 @@ class TwitterController < AuthenticatedController
       @channel.name = session['twitter_channel_name']      
       @channel.kind = 'twitter'
       @channel.protocol = 'twitter'
-      @channel.direction = Channel::Bidirectional  
+      @channel.direction = Channel::Both  
     else
       @update = true
       @channel = Channel.find session['twitter_channel_id']
