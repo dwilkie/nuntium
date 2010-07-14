@@ -1,16 +1,9 @@
 require 'net/smtp'
 
-class SmtpChannelHandler < ChannelHandler
-  def handle(msg)
-    Delayed::Job.enqueue create_job(msg) 
-  end
-  
-  def handle_now(msg)
-    create_job(msg).perform
-  end
-  
-  def create_job(msg)
-    SendSmtpMessageJob.new(@channel.application_id, @channel.id, msg.id)
+class SmtpChannelHandler < GenericChannelHandler
+
+  def job_class
+    SendSmtpMessageJob
   end
   
   def check_valid
@@ -30,7 +23,7 @@ class SmtpChannelHandler < ChannelHandler
     config = @channel.configuration
     
     smtp = Net::SMTP.new(config[:host], config[:port].to_i)
-    if (config[:use_ssl] == '1')
+    if (config[:use_ssl].to_b)
       smtp.enable_tls
     end
     

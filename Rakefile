@@ -9,8 +9,7 @@ require 'rake/rdoctask'
 
 require 'tasks/rails'
 
-begin
-  require 'delayed/tasks'
-rescue LoadError
-  STDERR.puts "Run `rake gems:install` to install delayed_job"
-end
+# ci_reporter
+require 'rubygems'
+gem 'ci_reporter'
+require 'ci/reporter/rake/test_unit' # use this if you're using Test::Unit

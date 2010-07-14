@@ -1,83 +1,42 @@
 class PullQstMessageJob
+
+  include CronTask::QuotedTask
   
-  BATCH_SIZE = 10
+  attr_accessor :batch_size
   
-  include ClientQstJob
-  
-  def initialize(app_id)
-    @application_id = app_id
+  def initialize(application_id)
+    @application_id = application_id
+    @batch_size = 10
   end
   
-  def perform_batch
-    require 'uri'
-    require 'net/http'
-    require 'builder'
-
-    app = Application.find_by_id(@application_id)
-    cfg = ClientQstConfiguration.new(app)
-    err = validate_app(app)
-    return err unless err.nil?
-
-    # Create http requestor and uri
-    http, path = create_http cfg, 'outgoing' 
-    if http.nil? then return :error_initializing_http end
-    path << "?max=#{BATCH_SIZE}"  
+  def perform
+    @application = Application.find_by_id(@application_id)
+    @client = QstClient.new @application.interface_url, @application.interface_user, @application.interface_password
     
-    # Get messages from server
-    response = request_messages(app, cfg, http, path) 
-    
-    # Handle different responses
-    if response.nil?
-      return :error_pulling_messages
-    elsif response.code == "304" # not modified
-      RAILS_DEFAULT_LOGGER.info "Pull QST in application #{app.name}: no new messages"
-      return :success
-    elsif response.code[0,1] != "2" # not success
-      app.logger.error_pulling_msgs response.message
-      return :error_pulling_messages
-    end
-    
-    # Accumulators
-    last_new_id = nil
-    size = 0
+    options = {:max => batch_size}
     
     begin
-      # Process successfully downloaded messages
-      AOMessage.parse_xml response.body do |msg|
-        app.route msg, 'qst_client'
-        last_new_id = msg.guid
-        size += 1
+      options[:from_id] = @application.last_ao_guid if @application.last_ao_guid
+      
+      msgs = @client.get_messages options
+      msgs = AOMessage.from_qst msgs
+      
+      return if msgs.empty?
+      
+      msgs.each do |msg|
+        @application.route_ao msg, 'qst_client'
       end
-    rescue => e
-      # On error, save last processed ok and quit
-      app.logger.error_processing_msgs e.to_s
-      app.set_last_ao_guid(last_new_id) unless last_new_id.nil?
-      return :error_processing_messages
+      @application.last_ao_guid = msgs.last.guid
+      @application.save!
+    end while has_quota?
+  rescue QstClient::Exception => ex
+    if ex.response.code == 401
+      @application.logger.error :application_id => @application.id, :message => "Pull Qst messages received unauthorized"
+    
+      @application.interface = 'rss'
+      @application.save!
     else
-      # On success, update last id and return success or pending
-      if last_new_id.nil?
-        RAILS_DEFAULT_LOGGER.info "Pull QST in application #{app.name}: polled '#{size}' messages to server"
-      else
-        RAILS_DEFAULT_LOGGER.info "Pull QST in application #{app.name}: polled '#{size}' messages to server up to id '#{last_new_id}'"
-      end
-      app.set_last_ao_guid(last_new_id) unless last_new_id.nil?
-      return size < BATCH_SIZE ? :success : :success_pending 
+      @application.logger.error :application_id => @application.id, :message => "Pull Qst messages received response code #{ex.response.code}"
     end
-  
   end
-  
-  # Creates a get request with proper authentication
-  def request_messages app, cfg, http, path
-    last_id = cfg.last_ao_guid
-    user = cfg.user
-    pass = cfg.pass
-    request = Net::HTTP::Get.new path
-    request.basic_auth(user, pass) unless user.nil? or pass.nil?
-    request['if-none-match'] = last_id unless last_id.nil?
-    http.request request
-  rescue => err
-    app.logger.error :message => "Error getting messages from the server: #{err}"
-    return nil
-  end
-  
 end

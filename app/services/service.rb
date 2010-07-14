@@ -1,32 +1,27 @@
 class Service
 
-  def initialize(controller = nil)
-    @controller = controller
+  def initialize
+    @is_running = true
     
-    if @controller.nil?
-      ["INT", "EXIT", "TERM", "KILL"].each do |signal|
-        trap(signal) { stop; exit }
+    @previous_trap = trap("TERM") do
+      stop
+      Thread.new do
+        Thread.main.join(5)
+        @previous_trap.call if @previous_trap
       end
     end
   end
   
   def running?
-    return true if @controller.nil?
-    @controller.running?
-  end
-  
-  def daydream(seconds)
-    start = Time.now.to_i
-    while running? && (Time.now.to_i - start) < seconds
-      sleep 1
-    end
+    @is_running
   end
   
   def logger
-    RAILS_DEFAULT_LOGGER
+    Rails.logger
   end
   
   def stop
+    @is_running = false
   end
   
   # Defines a start method that executes the given block and sleeps
@@ -40,7 +35,7 @@ class Service
         rescue Exception => err
           logger.error "Daemon failure: #{err} #{err.backtrace}"
         end
-        daydream sleep_seconds
+        sleep sleep_seconds
       end
     end
   end

@@ -1,30 +1,40 @@
 require 'test_helper'
 
 class ManagedProcessTest < ActiveSupport::TestCase
-  test "initial status" do
-    p1 = ManagedProcess.create!(:name => 'one')
-    p2 = ManagedProcess.create!(:name => 'two')
-    status = ManagedProcess.status
-    assert_equal({p1 => :start, p2 => :start}, status)
+  
+  test "publish start notification on create" do
+    jobs = collect_jobs
+    mp = ManagedProcess.make
+    assert_job jobs, StartProcessJob, mp
   end
   
-  test "new status" do
-    p1 = ManagedProcess.create!(:name => 'nothing')
-    p2 = ManagedProcess.create!(:name => 'stop')
-    p3 = ManagedProcess.create!(:name => 'restart')
-    p4 = ManagedProcess.create!(:name => 'disabled', :enabled => true)
-    p5 = ManagedProcess.create!(:name => 'enabled', :enabled => false)
-    previous_status = ManagedProcess.status
-    
-    sleep 1
-    
-    p2.delete
-    p3.name = 'restarted'; p3.save!
-    p4.enabled = false; p4.save!
-    p5.enabled = true; p5.save!
-    p6 = ManagedProcess.create!(:name => 'start')
-    
-    status = ManagedProcess.status(previous_status)    
-    assert_equal({p2 => :stop, p3 => :restart, p4 => :stop, p5 => :start, p6 => :start}, status)
+  test "publish stop notification on destroy" do
+    mp = ManagedProcess.make
+    jobs = collect_jobs
+    mp.destroy
+    assert_job jobs, StopProcessJob, mp
   end
+  
+  test "publish restart notification on update" do
+    mp = ManagedProcess.make
+    jobs = collect_jobs
+    mp.touch
+    assert_job jobs, RestartProcessJob, mp
+  end
+  
+  def collect_jobs
+    jobs = []
+    Queues.expects(:publish_notification).with do |job, routing_key, mq|
+       jobs << job
+       routing_key == 'managed_processes'
+    end
+    jobs
+  end
+  
+  def assert_job(jobs, kind, mp)
+    assert_equal 1, jobs.length
+    assert_kind_of kind, jobs[0]
+    assert_equal mp.id, jobs[0].id
+  end
+  
 end

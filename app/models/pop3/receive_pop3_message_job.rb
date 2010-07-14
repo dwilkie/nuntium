@@ -2,31 +2,32 @@ require 'net/pop'
 require 'tmail'
 
 class ReceivePop3MessageJob
-  attr_accessor :application_id, :channel_id
+  attr_accessor :account_id, :channel_id
 
   include CronTask::QuotedTask
 
-  def initialize(application_id, channel_id)
-    @application_id = application_id
+  def initialize(account_id, channel_id)
+    @account_id = account_id
     @channel_id = channel_id
   end
   
   def perform
-    application = Application.find @application_id
-    channel = Channel.find @channel_id
-    config = channel.configuration
+    account = Account.find @account_id
+    @channel = account.find_channel @channel_id
+    config = @channel.configuration
     
     pop = Net::POP3.new(config[:host], config[:port].to_i)
-    pop.enable_ssl(OpenSSL::SSL::VERIFY_NONE) if config[:use_ssl] == '1'
+    pop.enable_ssl(OpenSSL::SSL::VERIFY_NONE) if config[:use_ssl].to_b
     
     begin
       pop.start(config[:user], config[:password])
-    rescue => e
-      ApplicationLogger.exception_in_channel channel, e
-      raise
-    end
+    rescue Net::POPAuthenticationError => ex
+      @channel.alert "#{ex}"
     
-    logger = ApplicationLogger.new(@application_id)
+      @channel.enabled = false
+      @channel.save!
+      return
+    end
     
     pop.each_mail do |mail|
       tmail = TMail::Mail.parse(mail.pop)
@@ -41,7 +42,7 @@ class ReceivePop3MessageJob
         msg.channel_relative_id = tmail.message_id
         msg.timestamp = tmail.date
         
-        application.accept msg, channel
+        account.route_at msg, @channel
       end
       
       mail.delete
@@ -49,7 +50,8 @@ class ReceivePop3MessageJob
     end
     
     pop.finish
-
+  rescue => ex
+    AccountLogger.exception_in_channel @channel, ex if @channel
   end
   
   def get_body(tmail)

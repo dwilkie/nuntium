@@ -1,47 +1,10 @@
-class SmppChannelHandler < ChannelHandler
-  def handle(msg)
-    if @channel.throttle.nil?
-      Delayed::Job.enqueue create_job(msg)
-    else
-      ThrottledJob.enqueue @channel.id, create_job(msg)
-    end
+class SmppChannelHandler < ServiceChannelHandler
+  def job_class
+    SendSmppMessageJob
   end
   
-  def handle_now
-    create_job(msg).perform
-  end
-  
-  def create_job(msg)
-    SendSmppMessageJob.new(@channel.application_id, @channel.id, msg.id)
-  end
-  
-  def on_enable
-    ManagedProcess.create!(
-      :application_id => @channel.application.id,
-      :name => managed_process_name,
-      :start_command => "drb_smpp_daemon_ctl.rb start -- #{ENV["RAILS_ENV"]} #{@channel.id}",
-      :stop_command => "drb_smpp_daemon_ctl.rb stop -- #{ENV["RAILS_ENV"]} #{@channel.id}",
-      :pid_file => "drb_smpp_daemon.#{@channel.id}.pid",
-      :log_file => "drb_smpp_daemon_#{@channel.id}.log"
-    )
-  end
-  
-  def on_disable
-    proc = ManagedProcess.find_by_application_id_and_name @channel.application.id, managed_process_name
-    proc.delete if proc
-  end
-  
-  def on_changed
-    proc = ManagedProcess.find_by_application_id_and_name @channel.application.id, managed_process_name
-    proc.touch if proc
-  end
-  
-  def on_destroy
-    on_disable
-  end
-  
-  def managed_process_name
-    "SMPP #{@channel.name}"
+  def service_name
+    'smpp_daemon'
   end
   
   def check_valid
@@ -80,6 +43,8 @@ class SmppChannelHandler < ChannelHandler
   
   def info
     c = @channel.configuration
-    "#{c[:user]}@#{c[:host]}:#{c[:port]}"
+    s = "#{c[:user]}@#{c[:host]}:#{c[:port]}"
+    s << " (#{@channel.throttle}/min)" if @channel.throttle != 0
+    s
   end
 end

@@ -1,4 +1,9 @@
 # Settings specified here will take precedence over those in config/environment.rb
+config.gem 'test-unit', :lib => 'test/unit'
+config.gem "mocha"
+config.gem "thoughtbot-shoulda", :lib => "shoulda", :source => "http://gems.github.com"
+config.gem 'faker'
+config.gem 'machinist'
 
 # The test environment is used exclusively to run your application's
 # test suite.  You never need to work with it otherwise.  Remember that
@@ -6,8 +11,7 @@
 # and recreated between test runs.  Don't rely on the data there!
 config.cache_classes = true
 
-# Set log error to DEBUG
-config.logger.level = Log4r::DEBUG if RUBY_PLATFORM.include?('mswin')
+# config.logger.level = INFO
 
 # Log error messages when you accidentally call methods on nil.
 config.whiny_nils = true
@@ -35,3 +39,6 @@ config.log_level = :debug
 
 # Use a different logger for distributed setups
 #config.logger = Logger.new(STDOUT)
+
+# Use memcached
+config.cache_store = :mem_cache_store
