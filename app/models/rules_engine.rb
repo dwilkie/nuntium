@@ -39,6 +39,40 @@ module RulesEngine
 
     res
   end
+  
+  def to_xml(xml, rules)
+    (rules || []).each do |rule|
+      xml.rule :stop => rule['stop'] do
+        xml.matchings do
+          (rule['matchings'] || []).each do |m|
+            xml.matching m
+          end
+        end
+        xml.actions do
+          (rule['actions'] || []).each do |m|
+            xml.action m
+          end
+        end
+        # todo write rule
+      end
+    end
+  end
+  
+  def from_hash(hash, format)
+    if format == :json
+      return hash
+    elsif format == :xml
+        # in :xml format we need to flatten :actions => [ { :action => { ... } } ,  { :action => { ... } } ]
+        rules = []
+        hash[:rule].ensure_array.each do |rule|
+          matchings = rule[:matchings][:matching].ensure_array
+          actions = rule[:actions][:action].ensure_array
+                      
+          rules << RulesEngine.rule(matchings, actions, rule[:stop].to_b)
+        end
+        return rules
+    end
+  end
 
   private
 

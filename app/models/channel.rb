@@ -295,6 +295,12 @@ class Channel < ActiveRecord::Base
           end
         end
       end unless restrictions.empty?
+      xml.ao_rules do
+        RulesEngine.to_xml xml, ao_rules
+      end unless ao_rules.nil?
+      xml.at_rules do
+        RulesEngine.to_xml xml, at_rules
+      end unless at_rules.nil?
     end
   end
 
@@ -322,6 +328,9 @@ class Channel < ActiveRecord::Base
       attributes[:restrictions] ||= []
       attributes[:restrictions] << {:name => name, :value => values}
     end unless restrictions.empty?
+    attributes[:ao_rules] = ao_rules unless ao_rules.nil?
+    attributes[:at_rules] = at_rules unless at_rules.nil?
+
     attributes.to_json
   end
 
@@ -335,7 +344,7 @@ class Channel < ActiveRecord::Base
   end
 
   def merge(other)
-    [:name, :kind, :protocol, :direction, :enabled, :priority, :configuration, :restrictions, :address, :ao_cost, :at_cost].each do |sym|
+    [:name, :kind, :protocol, :direction, :enabled, :priority, :configuration, :restrictions, :address, :ao_cost, :at_cost, :ao_rules, :at_rules].each do |sym|
       write_attribute sym, other.read_attribute(sym) if !other.read_attribute(sym).nil?
     end
   end
@@ -485,6 +494,9 @@ class Channel < ActiveRecord::Base
     hash_restrict.each do |property|
       chan.restrictions.store_multivalue property[:name], property[:value]
     end unless hash_restrict.kind_of? String
+
+    chan.ao_rules = RulesEngine.from_hash hash[:ao_rules], format if hash.has_key?(:ao_rules)
+    chan.at_rules = RulesEngine.from_hash hash[:at_rules], format if hash.has_key?(:at_rules)
 
     chan
   end

@@ -8,4 +8,14 @@ class Object
       self
     end
   end
+  
+  def ensure_array
+    if self.kind_of? Array
+      self
+    elsif self.nil?
+      []
+    else
+      [self]
+    end
+  end
 end

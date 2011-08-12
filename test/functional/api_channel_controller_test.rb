@@ -122,7 +122,47 @@ class ApiChannelControllerTest < ActionController::TestCase
       assert_equal @account.id, result.account_id
       assert_equal @application.id, result.application_id
       [:name, :kind, :protocol, :direction, :enabled, :priority, :restrictions, :configuration].each do |sym|
-        assert_equal chan.send(sym), result.send(sym), "sym was not the same"
+        assert_equal chan.send(sym), result.send(sym), "#{sym} was not the same"
+      end
+    end
+    
+    test "create #{format} channel with at_rules and ao_rules succeeds" do
+      chan = Channel.make_unsaved :qst_client, :enabled => false
+      chan.ao_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1')
+        ],[
+          RulesEngine.action('from','sms://2')
+        ], true),
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://3')
+        ],[
+          RulesEngine.action('from','sms://4'),
+          RulesEngine.action('body','lorem')
+        ]),   
+        RulesEngine.rule([],[
+          RulesEngine.action('subject','foo')
+        ])      
+      ]
+
+      chan.at_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1'),
+          RulesEngine.matching('body', RulesEngine::OP_EQUALS, 'ipsum')
+        ],[
+          RulesEngine.action('ca1','whitness')
+        ])
+      ]
+      
+      create chan, format
+
+      result = @account.channels.last
+
+      assert_not_nil result
+      assert_equal @account.id, result.account_id
+      assert_equal @application.id, result.application_id
+      [:name, :kind, :protocol, :direction, :enabled, :priority, :restrictions, :configuration, :ao_rules, :at_rules].each do |sym|
+        assert_equal chan.send(sym), result.send(sym), "#{sym} was not the same"
       end
     end
     
@@ -139,7 +179,7 @@ class ApiChannelControllerTest < ActionController::TestCase
       assert_equal @account.id, result.account_id
       assert_equal @application.id, result.application_id
       [:name, :kind, :protocol, :direction, :enabled, :priority, :restrictions].each do |sym|
-        assert_equal chan.send(sym), result.send(sym), "sym was not the same"
+        assert_equal chan.send(sym), result.send(sym), "#{sym} was not the same"
       end
       assert_nil result.ticket_code
       assert_equal '8346-2355', result.address
@@ -215,6 +255,96 @@ class ApiChannelControllerTest < ActionController::TestCase
       chan.reload
 
       assert_equal 'z', chan.restrictions['x']
+    end
+    
+    test "update #{format} channel can override completely rules" do
+      chan = Channel.make :qst_client, { :account => @account, :application => @application, :enabled => false,
+          :ao_rules => [RulesEngine.rule([],[RulesEngine.action('from','sms://3')])],
+          :at_rules => [RulesEngine.rule([],[RulesEngine.action('from','sms://6')])] }
+          
+      to_update = Channel.new(:enabled => true)
+      to_update.ao_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1')
+        ],[
+          RulesEngine.action('from','sms://2')
+        ], true),
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://3')
+        ],[
+          RulesEngine.action('from','sms://4'),
+          RulesEngine.action('body','lorem')
+        ]),   
+        RulesEngine.rule([],[
+          RulesEngine.action('subject','foo')
+        ])      
+      ]
+
+      to_update.at_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1'),
+          RulesEngine.matching('body', RulesEngine::OP_EQUALS, 'ipsum')
+        ],[
+          RulesEngine.action('ca1','whitness')
+        ])
+      ]
+      
+      update chan.name, to_update, format
+
+      result = @account.channels.last
+
+      assert_not_nil result
+      assert_equal @account.id, result.account_id
+      assert_equal @application.id, result.application_id
+      assert result.enabled
+      assert_equal to_update.ao_rules, result.ao_rules 
+      assert_equal to_update.at_rules, result.at_rules
+      [:name, :kind, :protocol, :direction, :priority, :restrictions, :configuration].each do |sym|
+        assert_equal chan.send(sym), result.send(sym), "#{sym} was not the same"
+      end
+    end
+        
+    # 
+    test "update #{format} channel avoid touching rules if not specified" do
+      chan = Channel.make :qst_client, :account => @account, :application => @application, :enabled => false
+      chan.ao_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1')
+        ],[
+          RulesEngine.action('from','sms://2')
+        ], true),
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://3')
+        ],[
+          RulesEngine.action('from','sms://4'),
+          RulesEngine.action('body','lorem')
+        ]),   
+        RulesEngine.rule([],[
+          RulesEngine.action('subject','foo')
+        ])      
+      ]
+
+      chan.at_rules = [
+        RulesEngine.rule([
+          RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1'),
+          RulesEngine.matching('body', RulesEngine::OP_EQUALS, 'ipsum')
+        ],[
+          RulesEngine.action('ca1','whitness')
+        ])
+      ]
+      chan.save!
+
+      update chan.name, Channel.new(:enabled => true), format
+
+      result = @account.channels.last
+
+      assert_not_nil result
+      assert_equal @account.id, result.account_id
+      assert_equal @application.id, result.application_id
+      assert result.enabled
+      [:name, :kind, :protocol, :direction, :priority, :restrictions, :configuration, :ao_rules, :at_rules].each do |sym|
+        assert_equal chan.send(sym), result.send(sym), "#{sym} was not the same"
+      end
     end
   end
 
