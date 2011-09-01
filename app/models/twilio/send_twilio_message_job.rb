@@ -1,4 +1,4 @@
-class SendTwilioMessageJob < SendMessageJob  
+class SendTwilioMessageJob < SendMessageJob
   def managed_perform
     client = Twilio::REST::Client.new @config[:account_sid], @config[:auth_token]
     begin
@@ -15,7 +15,7 @@ class SendTwilioMessageJob < SendMessageJob
       raise MessageException.new(e)
     end
   end
-  
+
   def sms_params
     {
       :from => @config[:from],
@@ -24,7 +24,7 @@ class SendTwilioMessageJob < SendMessageJob
       :status_callback => ack_callback
     }
   end
-  
+
   def ack_callback
     uri = URI.parse(NamedRoutes.twilio_ack_url(@account))
     uri.userinfo = "#{@channel.name}:#{@config[:incoming_password]}"

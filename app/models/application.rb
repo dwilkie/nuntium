@@ -1,6 +1,8 @@
 require 'digest/sha2'
 
 class Application < ActiveRecord::Base
+  include Authenticable
+
   belongs_to :account
   has_many :ao_messages
   has_many :at_messages
@@ -21,21 +23,32 @@ class Application < ActiveRecord::Base
   serialize :ao_rules
   serialize :at_rules
 
-  before_save :hash_password
-
   after_save :handle_tasks
   after_create :create_worker_queue
   after_save :bind_queue
 
-  before_destroy :clear_cache
   before_destroy :delete_worker_queue
-  after_save :clear_cache
 
   after_save :restart_channel_processes
 
   include(CronTask::CronTaskOwner)
 
-  # Route an AOMessage.
+  configuration_accessor :interface_url, :interface_user, :interface_password, :interface_custom_format
+  configuration_accessor :strategy, :default => 'single_priority'
+  configuration_accessor :delivery_ack_method, :default => 'none'
+  configuration_accessor :delivery_ack_url, :delivery_ack_user, :delivery_ack_password
+  configuration_accessor :last_at_guid, :last_ao_guid
+
+  def use_address_source?
+    v = configuration[:use_address_source]
+    v.nil? || v.to_b
+  end
+
+  def use_address_source=(value)
+    configuration[:use_address_source] = value.to_b
+  end
+
+  # Route an AoMessage.
   #
   # When options[:simulate] is true, a simulation is done with the following result:
   #
@@ -267,15 +280,13 @@ class Application < ActiveRecord::Base
     end
 
     # Get all outgoing enabled channels
-    all_channels = account.channels
-
-    channels = all_channels.select{|c| c.enabled && c.is_outgoing?}
+    channels = account.channels.enabled.outgoing
 
     # Find channels that handle that protocol
-    channels = channels.select {|x| x.protocol == protocol}
+    channels = channels.where(:protocol => protocol)
 
     # Filter channels that belong to a different application
-    channels = channels.select {|x| x.application_id.nil? || x.application_id == msg.application_id}
+    channels = channels.where('application_id IS NULL or application_id = ?', msg.application_id)
 
     # Filter them according to custom attributes
     channels = channels.select{|x| x.can_route_ao? msg}
@@ -300,7 +311,7 @@ class Application < ActiveRecord::Base
     end
 
     # See if there is a last channel used to route an AT message with this address
-    last_channel = get_last_channel msg.to, all_channels, channels
+    last_channel = get_last_channel msg.to, channels
     if last_channel
       ThreadLocalLogger << "'#{last_channel.name}' selected from address sources"
       return [last_channel]
@@ -309,60 +320,12 @@ class Application < ActiveRecord::Base
     return channels
   end
 
-  def self.find_all_by_account_id(account_id)
-    apps = Rails.cache.read cache_key(account_id)
-    if not apps
-      apps = Application.all :conditions => ['account_id = ?', account_id]
-      Rails.cache.write cache_key(account_id), apps
-    end
-    apps
-  end
-
   def configuration
-    self[:configuration] = {} if self[:configuration].nil?
-    self[:configuration]
-  end
-
-  def is_rss
-    self.interface == 'rss'
-  end
-
-  def authenticate(password)
-    self.password == Digest::SHA2.hexdigest(self.salt + password)
-  end
-
-  def self.configuration_accessor(name, default = nil)
-    define_method(name) do
-      configuration[name] || default
-    end
-    define_method("#{name}=") do |value|
-      configuration[name] = value
-    end
-  end
-
-  configuration_accessor :interface_url
-  configuration_accessor :interface_user
-  configuration_accessor :interface_password
-  configuration_accessor :interface_custom_format
-  configuration_accessor :strategy, 'single_priority'
-  configuration_accessor :delivery_ack_method, 'none'
-  configuration_accessor :delivery_ack_url
-  configuration_accessor :delivery_ack_user
-  configuration_accessor :delivery_ack_password
-  configuration_accessor :last_at_guid
-  configuration_accessor :last_ao_guid
-
-  def use_address_source?
-    v = configuration[:use_address_source]
-    v.nil? || v.to_b
-  end
-
-  def use_address_source=(value)
-    configuration[:use_address_source] = value.to_b
+    self[:configuration] ||= {}
   end
 
   def strategy_description
-    Application.strategy_description(strategy)
+    self.class.strategy_description strategy
   end
 
   def self.strategy_description(strategy)
@@ -412,11 +375,11 @@ class Application < ActiveRecord::Base
   def alert(message)
     return if account.alert_emails.blank?
 
-    AlertMailer.deliver_error account, "Error in account #{account.name}, application #{self.name}", message
+    AlertMailer.error(account, "Error in account #{account.name}, application #{self.name}", message).deliver
   end
 
   def logger
-    @logger ||= AccountLogger.new(self.account.id, self.id)
+    @logger ||= AccountLogger.new self.account.id, self.id
   end
 
   protected
@@ -465,9 +428,9 @@ class Application < ActiveRecord::Base
     end
   end
 
-  def get_last_channel(address, all_channels, outgoing_channels)
+  def get_last_channel(address, outgoing_channels)
     return nil unless use_address_source?
-    ass = AddressSource.all :conditions => ['application_id = ? AND address = ?', self.id, address], :order => 'updated_at DESC'
+    ass = address_sources.where(:address => address).order('updated_at DESC').all
     return nil if ass.empty?
 
     chosen_channel = nil
@@ -475,7 +438,7 @@ class Application < ActiveRecord::Base
 
     # Return the first outgoing_channel that was used as a last channel.
     ass.each do |as|
-      real = all_channels.select{|x| x.id == as.channel_id}.first
+      real = account.channels.find_by_id as.channel_id
       address_sources_names << real.name if real
 
       if not chosen_channel
@@ -489,24 +452,7 @@ class Application < ActiveRecord::Base
     chosen_channel
   end
 
-  def hash_password
-    return if self.salt.present?
-
-    self.salt = ActiveSupport::SecureRandom.base64(8)
-    self.password = Digest::SHA2.hexdigest(self.salt + self.password) if self.password
-    self.password_confirmation = Digest::SHA2.hexdigest(self.salt + self.password_confirmation) if self.password_confirmation
-  end
-
-  def clear_cache
-    Rails.cache.delete Application.cache_key(account_id)
-    true
-  end
-
   def restart_channel_processes
     account.restart_channel_processes
-  end
-
-  def self.cache_key(account_id)
-    "account_#{account_id}_applications"
   end
 end

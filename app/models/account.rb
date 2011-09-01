@@ -1,13 +1,18 @@
 require 'digest/sha2'
 
 class Account < ActiveRecord::Base
+  include Authenticable
 
   has_many :applications
   has_many :channels
+  has_many :clickatell_channels
+  has_many :qst_server_channels
+  has_many :twilio_channels
   has_many :address_sources
   has_many :ao_messages
   has_many :at_messages
   has_many :custom_attributes
+  has_many :logs
 
   serialize :app_routing_rules
 
@@ -18,7 +23,6 @@ class Account < ActiveRecord::Base
   validates_confirmation_of :password
   validates_numericality_of :max_tries, :only_integer => true, :greater_than_or_equal_to => 0
 
-  before_save :hash_password
   after_save :restart_channel_processes
 
   def self.find_by_id_or_name(id_or_name)
@@ -27,27 +31,7 @@ class Account < ActiveRecord::Base
     account
   end
 
-  def channels
-    Channel.find_all_by_account_id id
-  end
-
-  def find_channel(id_or_name)
-    channels.select{|c| c.id == id_or_name.to_i || c.name == id_or_name}.first
-  end
-
-  def authenticate(password)
-    self.password == Digest::SHA2.hexdigest(self.salt + password)
-  end
-
-  def applications
-    Application.find_all_by_account_id id
-  end
-
-  def find_application(id_or_name)
-    applications.select{|c| c.id == id_or_name.to_i || c.name == id_or_name}.first
-  end
-
-  # Routes an ATMessage via a channel.
+  # Routes an AtMessage via a channel.
   #
   # When options[:simulate] is true, a simulation is done and the log is returned.
   def route_at(msg, via_channel, options = {})
@@ -76,7 +60,7 @@ class Account < ActiveRecord::Base
     end
 
     # Fill custom attributes specified by sender
-    custom_attributes = CustomAttribute.find_by_account_id_and_address self.id, msg.from
+    custom_attributes = self.custom_attributes.find_by_address msg.from
     if custom_attributes
       ThreadLocalLogger << "Setting custom attributes specified for this user (#{custom_attributes.custom_attributes.to_human})"
       msg.custom_attributes.merge! custom_attributes.custom_attributes
@@ -84,7 +68,7 @@ class Account < ActiveRecord::Base
 
     # Set application custom attribute if the channel belongs to an application
     if via_channel.application_id
-      msg.custom_attributes['application'] = find_application(via_channel.application_id).name rescue nil
+      msg.custom_attributes['application'] = applications.find_by_id(via_channel.application_id).name rescue nil
       if msg.custom_attributes['application']
         ThreadLocalLogger << "Message's application set to '#{msg.custom_attributes['application']}' because the channel belongs to it"
       end
@@ -116,14 +100,15 @@ class Account < ActiveRecord::Base
     msg.infer_custom_attributes :mobile_number => mob
 
     # App Routing logic
-    if applications.empty?
+    all_applications = applications.all
+    if all_applications.empty?
       msg.save! unless simulate
 
       ThreadLocalLogger << "No application found for routing message"
       return ThreadLocalLogger.result if simulate
       logger.info :at_message_id => msg.id, :channel_id => via_channel.id, :message => ThreadLocalLogger.result
-    elsif applications.length == 1
-      applications.first.route_at(msg, via_channel, options)
+    elsif all_applications.length == 1
+      all_applications.first.route_at(msg, via_channel, options)
       return ThreadLocalLogger.result if simulate
     else
       # if msg says which application to be used...
@@ -138,7 +123,7 @@ class Account < ActiveRecord::Base
       end
 
       if dest_application_name
-        application = find_application dest_application_name
+        application = all_applications.select{|x| x.name == dest_application_name}.first
         if application
           application.route_at(msg, via_channel, options)
 
@@ -164,21 +149,23 @@ class Account < ActiveRecord::Base
     return if self.alert_emails.blank?
 
     logger.error :message => message
-    AlertMailer.deliver_error self, "Error in account #{self.name}", message
+    AlertMailer.error(self, "Error in account #{self.name}", message).deliver
+  end
+
+  def queued_ao_messages_count_by_channel_id
+    result = Hash.new 0
+    ao_messages.joins(:channel).with_state('queued').group(:channel_id).select('channel_id, count(*) as count').each do |record|
+      result[record.channel_id] = record.count.to_i
+    end
+    result
   end
 
   def logger
-    @logger ||= AccountLogger.new(self.id)
-  end
-
-  def clear_password
-    self.salt = nil
-    self.password = nil
-    self.password_confirmation = nil
+    @logger ||= AccountLogger.new self.id
   end
 
   def restart_channel_processes
-    channels.each { |x| x.handler.on_changed }
+    channels.each &:on_changed
   end
 
   def to_s
@@ -187,17 +174,8 @@ class Account < ActiveRecord::Base
 
   private
 
-  def hash_password
-    return if self.salt.present?
-
-    self.salt = ActiveSupport::SecureRandom.base64(8)
-    self.password = Digest::SHA2.hexdigest(self.salt + self.password) if self.password
-    self.password_confirmation = Digest::SHA2.hexdigest(self.salt + self.password_confirmation) if self.password_confirmation
-  end
-
   def duplicated?(msg)
     return false if !msg.new_record? || msg.guid.nil?
     msg.class.exists?(['account_id = ? and guid = ?', self.id, msg.guid])
   end
-
 end

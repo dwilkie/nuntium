@@ -2,7 +2,7 @@ require 'test_helper'
 
 class SendMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
   def setup
-    @chan = Channel.make :multimodem_isms
+    @chan = MultimodemIsmsChannel.make
   end
 
   should "perform" do
@@ -13,12 +13,12 @@ class SendMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
       :content_type => 'text/plain',
       :body => 'ID: msgid')
 
-    msg = AOMessage.make :account => Account.make, :channel => @chan, :guid => '1-2'
+    msg = AoMessage.make :account => Account.make, :channel => @chan, :guid => '1-2'
 
     expect_rest msg, response
     deliver msg
 
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal 'msgid', msg.channel_relative_id
     assert_equal 1, msg.tries
     assert_equal 'delivered', msg.state
@@ -41,7 +41,7 @@ class SendMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
   end
 
   def check_message_was_delivered(channel_relative_id)
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal channel_relative_id, msg.channel_relative_id
     assert_equal 1, msg.tries
     assert_equal 'delivered', msg.state

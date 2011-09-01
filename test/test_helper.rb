@@ -1,15 +1,15 @@
 ENV["RAILS_ENV"] = "test"
 require File.expand_path(File.dirname(__FILE__) + "/../config/environment")
 require File.expand_path(File.dirname(__FILE__) + "/blueprints")
-require 'test_help'
+require 'rails/test_help'
 require 'base64'
 require 'digest/md5'
 require 'digest/sha2'
 require 'shoulda'
 require 'mocha'
 
-require File.expand_path(File.dirname(__FILE__) + "/unit/generic_channel_handler_test")
-require File.expand_path(File.dirname(__FILE__) + "/unit/service_channel_handler_test")
+require File.expand_path(File.dirname(__FILE__) + "/unit/generic_channel_test")
+require File.expand_path(File.dirname(__FILE__) + "/unit/service_channel_test")
 
 class ActiveSupport::TestCase
   # Transactional fixtures accelerate your tests by wrapping each test method
@@ -110,9 +110,9 @@ class ActiveSupport::TestCase
     end
   end
 
-  # Creates an ATMessage that belongs to account and has values according to i
+  # Creates an AtMessage that belongs to account and has values according to i
   def new_at_message(application, i, protocol = 'protocol', state = 'queued', tries = 0)
-    msg = new_message application.account, i, ATMessage, protocol, state, tries
+    msg = new_message application.account, i, AtMessage, protocol, state, tries
     if msg.respond_to? :each
       msg.each{|x| x.application_id = application.id, x.save!}
     else
@@ -155,7 +155,7 @@ class ActiveSupport::TestCase
     assert !chan.save
   end
 
-  def assert_handler_should_enqueue_ao_job(chan)
+  def assert_channel_should_enqueue_ao_job(chan)
     chan.save!
 
     jobs = []
@@ -163,18 +163,14 @@ class ActiveSupport::TestCase
       jobs << job
     end
 
-    msg = AOMessage.make :account_id => chan.account_id, :channel_id => chan.id
-    chan.handler.handle(msg)
+    msg = AoMessage.make :account_id => chan.account_id, :channel_id => chan.id
+    chan.handle(msg)
 
     assert_equal 1, jobs.length
-    assert_equal chan.handler.job_class, jobs[0].class
+    assert_equal chan.job_class, jobs[0].class
     assert_equal msg.id, jobs[0].message_id
     assert_equal chan.id, jobs[0].channel_id
     assert_equal chan.account_id, jobs[0].account_id
     assert_equal msg.id, jobs[0].message_id
   end
 end
-
-# This is for after_create to work in tests
-ActiveRecord::Base.send(:include, AfterCommit::AfterSavepoint)
-ActiveRecord::Base.include_after_savepoint_extensions

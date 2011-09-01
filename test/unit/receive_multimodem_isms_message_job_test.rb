@@ -2,7 +2,7 @@ require 'test_helper'
 
 class ReceiveMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
   def setup
-    @chan = Channel.make :multimodem_isms
+    @chan = MultimodemIsmsChannel.make
   end
 
   should "perform with zero" do
@@ -29,9 +29,9 @@ END_OF_MESSAGE
     job = ReceiveMultimodemIsmsMessageJob.new(@chan.account.id, @chan.id)
     job.perform
 
-    msgs = ATMessage.all
+    msgs = AtMessage.all
     assert_equal 0, msgs.length
-    assert_equal 0, AccountLog.count
+    assert_equal 0, Log.count
   end
 
   should "perform with one" do
@@ -67,7 +67,7 @@ END_OF_MESSAGE
     job = ReceiveMultimodemIsmsMessageJob.new(@chan.account.id, @chan.id)
     job.perform
 
-    msgs = ATMessage.all
+    msgs = AtMessage.all
     assert_equal 1, msgs.length
 
     assert_equal "sms://93774494364", msgs[0].from
@@ -119,7 +119,7 @@ END_OF_MESSAGE
     job = ReceiveMultimodemIsmsMessageJob.new(@chan.account.id, @chan.id)
     job.perform
 
-    msgs = ATMessage.all
+    msgs = AtMessage.all
     assert_equal 2, msgs.length
 
     assert_equal "sms://93774494364", msgs[0].from

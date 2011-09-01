@@ -9,8 +9,8 @@ class SendXmppMessageJob
 
   def perform(delegate)
     account = Account.find_by_id @account_id
-    channel = account.find_channel @channel_id
-    msg = AOMessage.find @message_id
+    channel = account.channels.find_by_id @channel_id
+    msg = AoMessage.find @message_id
 
     begin
       msg.tries += 1

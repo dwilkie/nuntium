@@ -120,7 +120,8 @@ function mark_ao_messages_as_cancelled() {
     return;
 
   var form = document.getElementById('ao_messages_form');
-  form.action = '/message/ao/mark_as_cancelled';
+  form.action = '/ao_messages/mark_as_cancelled';
+  form.method = 'POST'
   form.submit();
 }
 
@@ -139,7 +140,8 @@ function mark_at_messages_as_cancelled() {
     return;
 
   var form = document.getElementById('at_messages_form');
-  form.action = '/message/at/mark_as_cancelled';
+  form.action = '/at_messages/mark_as_cancelled';
+  form.method = 'POST';
   form.submit();
 }
 
@@ -158,13 +160,14 @@ function reroute_ao_messages() {
     return;
 
   var form = document.getElementById('ao_messages_form');
-  form.action = '/message/ao/reroute';
+  form.action = '/ao_messages/reroute';
+  form.method = 'POST';
   form.submit();
 }
 
 function create_channel(select) {
   if (!select.value) return;
-  window.location = '/channel/new/' + select.value;
+  window.location = '/channels/new?kind=' + select.value;
   select.value = '';
 }
 
@@ -208,7 +211,7 @@ function change_channel_state(id, name, want_confirm, action, state, paction, to
 
   $.ajax({
     type: "GET",
-    url: '/channel/' + action + '/' + id,
+    url: '/channels/' + id + '/' + action,
     success: function(data) {
       $("#chan-" + id + " .img").attr('src', '/images/' + state + '.png');
       for(var i = 0; i < to_hide.length; i++) {
@@ -244,7 +247,7 @@ function flash(message) {
 // === clickatell ===
 
 function clickatell_channel_direction_changed() {
-  var dir = $('#channel_direction :selected').val();
+  var dir = parseInt($('select#channel_direction').val());
 
   // incoming
   if (dir & 1) {

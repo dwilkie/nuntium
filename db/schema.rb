@@ -1,32 +1,16 @@
-# This file is auto-generated from the current state of the database. Instead of editing this file, 
-# please use the migrations feature of Active Record to incrementally modify your database, and
-# then regenerate this schema definition.
+# This file is auto-generated from the current state of the database. Instead
+# of editing this file, please use the migrations feature of Active Record to
+# incrementally modify your database, and then regenerate this schema definition.
 #
-# Note that this schema.rb definition is the authoritative source for your database schema. If you need
-# to create the application database on another system, you should be using db:schema:load, not running
-# all the migrations from scratch. The latter is a flawed and unsustainable approach (the more migrations
+# Note that this schema.rb definition is the authoritative source for your
+# database schema. If you need to create the application database on another
+# system, you should be using db:schema:load, not running all the migrations
+# from scratch. The latter is a flawed and unsustainable approach (the more migrations
 # you'll amass, the slower it'll run and the greater likelihood for issues).
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20110808172602) do
-
-  create_table "account_logs", :force => true do |t|
-    t.integer  "account_id"
-    t.integer  "channel_id"
-    t.integer  "ao_message_id"
-    t.integer  "at_message_id"
-    t.text     "message"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.integer  "severity"
-    t.integer  "application_id"
-  end
-
-  add_index "account_logs", ["account_id", "ao_message_id"], :name => "index_account_logs_on_account_id_and_ao_message_id"
-  add_index "account_logs", ["account_id", "at_message_id"], :name => "index_account_logs_on_account_id_and_at_message_id"
-  add_index "account_logs", ["account_id", "channel_id"], :name => "index_account_logs_on_account_id_and_channel_id"
-  add_index "account_logs", ["account_id", "id"], :name => "index_account_logs_on_account_id_and_id"
+ActiveRecord::Schema.define(:version => 20110823191413) do
 
   create_table "accounts", :force => true do |t|
     t.string   "name"
@@ -75,6 +59,7 @@ ActiveRecord::Schema.define(:version => 20110808172602) do
 
   add_index "ao_messages", ["account_id", "channel_id", "state"], :name => "index_ao_messages_on_account_id_and_channel_id_and_state"
   add_index "ao_messages", ["account_id", "id"], :name => "index_ao_messages_on_account_id_and_id"
+  add_index "ao_messages", ["account_id", "state", "channel_id"], :name => "index_ao_messages_on_account_id_and_state_and_channel_id"
   add_index "ao_messages", ["account_id", "to", "id"], :name => "index_ao_messages_on_account_id_and_to_and_id"
   add_index "ao_messages", ["application_id", "token"], :name => "index_ao_messages_on_application_id_and_token"
   add_index "ao_messages", ["channel_id", "channel_relative_id"], :name => "index_ao_messages_on_channel_id_and_channel_relative_id"
@@ -200,6 +185,23 @@ ActiveRecord::Schema.define(:version => 20110808172602) do
   end
 
   add_index "custom_attributes", ["account_id", "address"], :name => "index_custom_attributes_on_account_id_and_address", :unique => true
+
+  create_table "logs", :force => true do |t|
+    t.integer  "account_id"
+    t.integer  "channel_id"
+    t.integer  "ao_message_id"
+    t.integer  "at_message_id"
+    t.text     "message"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.integer  "severity"
+    t.integer  "application_id"
+  end
+
+  add_index "logs", ["account_id", "ao_message_id"], :name => "index_account_logs_on_account_id_and_ao_message_id"
+  add_index "logs", ["account_id", "at_message_id"], :name => "index_account_logs_on_account_id_and_at_message_id"
+  add_index "logs", ["account_id", "channel_id"], :name => "index_account_logs_on_account_id_and_channel_id"
+  add_index "logs", ["account_id", "id"], :name => "index_account_logs_on_account_id_and_id"
 
   create_table "managed_processes", :force => true do |t|
     t.integer  "account_id"

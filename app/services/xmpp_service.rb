@@ -12,12 +12,12 @@ class XmppService < Service
   end
 
   def start
-    setup @channel.handler.jid, @channel.configuration[:password], @channel.handler.server, @channel.configuration[:port]
+    setup @channel.jid, @channel.password, @channel.server, @channel.port
     when_ready do
-      Rails.logger.info "Connected to #{@channel.handler.jid}"
+      Rails.logger.info "Connected to #{@channel.jid}"
       self.channel_connected = true
 
-      set_status :chat, @channel.configuration[:status] if @channel.configuration[:status].present?
+      set_status :chat, @channel.status if @channel.status.present?
 
       subscribe_queue
       receive_chats
@@ -37,7 +37,7 @@ class XmppService < Service
 
   def receive_chats
     message :chat?, :body do |msg|
-      at = ATMessage.new
+      at = AtMessage.new
       at.channel_relative_id = msg.id
       at.from = msg.from.stripped.to_s.with_protocol 'xmpp'
       at.to = msg.to.stripped.to_s.with_protocol 'xmpp'
@@ -50,7 +50,7 @@ class XmppService < Service
 
   def receive_errors
     message :error? do |msg|
-      ao = AOMessage.find_by_id msg.id
+      ao = AoMessage.find_by_id msg.id
       if ao
         ao.state = 'failed'
         ao.save!

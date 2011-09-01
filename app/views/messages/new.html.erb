@@ -1,0 +1,46 @@
+<h4>Create new <%= @kind == 'ao' ? 'Application Originated' : 'Application Terminated' -%> Message</h4>
+
+<%= form_for @msg, :html => {:id => :new_message_form} do |f| -%>
+  <%- [:from, :to, :subject].each do |field| -%>
+    <p>
+    <%= f.label field -%><br/>
+    <%= f.text_field field, :style => 'width:250px' -%>
+    </p>
+  <%- end -%>
+  <p>
+  <%= f.label :body -%><br/>
+  <%= f.text_area :body, :rows => 5, :cols => 50 -%>
+  </p>
+  <%- if @kind == 'ao' -%>
+    <p>
+    <%= f.label :application -%><br/>
+    <%= f.select :application_id, applications.map{|x| [x.name, x.id]} -%>
+    </p>
+  <%- else -%>
+    <p>
+    <%= f.label :channel -%><br/>
+    <%= f.select :channel_id, channels.select{|x| x.direction == Channel::Incoming || x.direction == Channel::Bidirectional}.map{|x| [x.name, x.id]} -%>
+    </p>
+  <%- end -%>
+  <%= render 'shared/edit_custom_attributes', :f => f, :entity => @message, :include_channels => @kind == 'ao', :accept_when_not_specified_option => false -%>
+  <button onClick="create_message()">Create Message</button>
+  or <button onClick="simulate_route()">Simulate Route</button>
+<%- end -%>
+
+<script>
+function create_message() {
+  var f = document.getElementById('new_message_form');
+  f.action = '<%= url_for(@msg) -%>';
+  f.target = '_self';
+  f.submit();
+}
+
+function simulate_route() {
+  var f = document.getElementById('new_message_form');
+  f.action = '<%= eval("simulate_route_#{@kind}_messages_path") -%>';
+  f.target = '_blank';
+  f.submit();
+}
+</script>
+
+<%= link_to 'Go back', eval("#{@kind}_messages_path") -%>

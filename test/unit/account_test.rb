@@ -6,8 +6,8 @@ class AccountTest < ActiveSupport::TestCase
 
   def setup
     @account = Account.make
-    @app = Application.make :account => @account
-    @chan = Channel.make :account => @account
+    @app = @account.applications.make
+    @chan = QstServerChannel.make :account_id => @account.id
   end
 
   [:name, :password].each do |field|
@@ -45,7 +45,7 @@ class AccountTest < ActiveSupport::TestCase
     country = Country.make
     carrier = Carrier.make :country => country
 
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     msg.custom_attributes['country'] = country.iso2
     msg.custom_attributes['carrier'] = carrier.guid
 
@@ -59,7 +59,7 @@ class AccountTest < ActiveSupport::TestCase
   end
 
   test "route at does not save mobile number if more than one country and/or carrier" do
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     msg.custom_attributes['country'] = ['ar', 'br']
     msg.custom_attributes['carrier'] = ['ABC123', 'XYZ']
 
@@ -69,7 +69,7 @@ class AccountTest < ActiveSupport::TestCase
   end
 
   test "route at saves last channel" do
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     @account.route_at msg, @chan
 
     as = AddressSource.all
@@ -82,9 +82,9 @@ class AccountTest < ActiveSupport::TestCase
 
   test "route at saves update updated_at for same channel" do
     previous_date = (Time.now - 10)
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
 
-    AddressSource.create! :address => msg.from, :account_id => @account.id, :application_id => @app.id, :channel_id => @chan.id, :updated_at => previous_date
+    @account.address_sources.create! :address => msg.from, :application_id => @app.id, :channel_id => @chan.id, :updated_at => previous_date
 
     @account.route_at msg, @chan
 
@@ -98,13 +98,13 @@ class AccountTest < ActiveSupport::TestCase
     assert as[0].updated_at > previous_date
   end
 
-   test "route at saves many last channels" do
-    chan2 = Channel.make :account => @account
+  test "route at saves many last channels" do
+    chan2 = QstServerChannel.make :account_id => @account.id
 
-    msg1 = ATMessage.make_unsaved :from => 'sms://1234'
+    msg1 = AtMessage.make_unsaved :from => 'sms://1234'
     @account.route_at msg1, @chan
 
-    msg2 = ATMessage.make_unsaved :from => 'sms://1234'
+    msg2 = AtMessage.make_unsaved :from => 'sms://1234'
     @account.route_at msg2, chan2
 
     as = AddressSource.all
@@ -125,7 +125,7 @@ class AccountTest < ActiveSupport::TestCase
     @chan.direction = Channel::Incoming
     @chan.save!
 
-    @account.route_at ATMessage.make_unsaved, @chan
+    @account.route_at AtMessage.make_unsaved, @chan
 
     assert_equal 0, AddressSource.count
   end
@@ -136,12 +136,12 @@ class AccountTest < ActiveSupport::TestCase
     ]
     @chan.save!
 
-    msg = ATMessage.make_unsaved :subject => 'one'
+    msg = AtMessage.make_unsaved :subject => 'one'
     @account.route_at msg, @chan
 
     assert_equal 'ONE', msg.subject
 
-    msg = ATMessage.make_unsaved :subject => 'two'
+    msg = AtMessage.make_unsaved :subject => 'two'
     @account.route_at msg, @chan
 
     assert_equal 'two', msg.subject
@@ -153,7 +153,7 @@ class AccountTest < ActiveSupport::TestCase
     ]
     @chan.save!
 
-    msg = ATMessage.make_unsaved :subject => 'one'
+    msg = AtMessage.make_unsaved :subject => 'one'
     @account.route_at msg, @chan
 
     assert_equal 'canceled', msg.state
@@ -163,32 +163,32 @@ class AccountTest < ActiveSupport::TestCase
   end
 
   test "apply app routing" do
-    app2 = Application.make :account => @account
+    app2 = @account.applications.make
 
     @account.app_routing_rules = [
       rule([matching('subject', OP_EQUALS, 'one')], [action('application', @app.name)]),
       rule([matching('subject', OP_EQUALS, 'two')], [action('application', app2.name)])
     ]
 
-    msg = ATMessage.make_unsaved :subject => 'one'
+    msg = AtMessage.make_unsaved :subject => 'one'
     @account.route_at msg, @chan
 
     assert_equal @app.id, msg.application_id
 
-    msg = ATMessage.make_unsaved :subject => 'two'
+    msg = AtMessage.make_unsaved :subject => 'two'
     @account.route_at msg, @chan
 
     assert_equal app2.id, msg.application_id
   end
 
   test "skip app routing if message has an application property already" do
-    app2 = Application.make :account => @account
+    app2 = @account.applications.make
 
     @account.app_routing_rules = [
       rule([], [action('application', app2.name)])
     ]
 
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     msg.custom_attributes['application'] = @app.name
     @account.route_at msg, @chan
 
@@ -199,29 +199,29 @@ class AccountTest < ActiveSupport::TestCase
     country = Country.make
     carrier = Carrier.make :country => country
 
-    msg = ATMessage.new :from => "sms://+#{country.phone_prefix}1234"
+    msg = AtMessage.new :from => "sms://+#{country.phone_prefix}1234"
     @account.route_at msg, @chan
 
     assert_equal country.iso2, msg.country
   end
 
   test "at routing routes to channel's application" do
-    app2 = Application.make :account => @account
+    app2 = @account.applications.make
     @chan.application_id = app2.id
     @chan.save!
 
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     @account.route_at msg, @chan
 
     assert_equal app2.id, msg.application_id
   end
 
   test "at routing routes to channel's application overriding custom attribute" do
-    app2 = Application.make :account => @account
+    app2 = @account.applications.make
     @chan.application_id = app2.id
     @chan.save!
 
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
     msg.custom_attributes['application'] = @app.name
 
     @account.route_at msg, @chan
@@ -230,7 +230,7 @@ class AccountTest < ActiveSupport::TestCase
   end
 
   test "at routing discards messages with same from and to addresses" do
-    msg = ATMessage.make_unsaved :from => 'sms://123', :to => 'sms://123'
+    msg = AtMessage.make_unsaved :from => 'sms://123', :to => 'sms://123'
 
     @account.route_at msg, @chan
 
@@ -241,7 +241,7 @@ class AccountTest < ActiveSupport::TestCase
     @chan.at_cost = 1.2
     @chan.save!
 
-    msg = ATMessage.make_unsaved
+    msg = AtMessage.make_unsaved
 
     @account.route_at msg, @chan
 

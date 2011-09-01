@@ -1,4 +1,4 @@
-class ATMessage < ActiveRecord::Base
+class AtMessage < ActiveRecord::Base
   belongs_to :account
   belongs_to :application
   belongs_to :channel
@@ -7,7 +7,9 @@ class ATMessage < ActiveRecord::Base
 
   include MessageCommon
   include MessageGetter
-  include MessageState
+  include MessageSerialization
+  include MessageCustomAttributes
+  include MessageSearch
 
   # Logs that each message was delivered/not delivered through the given interface
   def self.log_delivery(msgs, account, interface)

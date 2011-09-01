@@ -2,16 +2,16 @@ require 'test_helper'
 
 class ChannelTest < ActiveSupport::TestCase
   def setup
-    @chan = Channel.make
+    @chan = QstServerChannel.make
   end
 
   def assert_eq_rules_xml(expected, actual)
     expected = expected.ensure_array
     actual = actual.ensure_array
-    
+
     expected = { :v => expected }.with_indifferent_access[:v]
     actual = { :v => actual }.with_indifferent_access[:v]
-    
+
     assert_equal expected.length, actual.length
     expected.zip(actual).each do |e_rule,a_rule|
       assert_equal e_rule[:stop].to_s, a_rule[:stop].to_s
@@ -40,13 +40,13 @@ class ChannelTest < ActiveSupport::TestCase
   end
 
   test "should not save if name is taken" do
-    chan2 = Channel.make_unsaved :name => @chan.name, :account => @chan.account
+    chan2 = QstServerChannel.make_unsaved :name => @chan.name, :account => @chan.account
     assert_false chan2.save
   end
 
   test "should save if name is taken in another account" do
     account2 = Account.make
-    chan2 = Channel.make_unsaved :name => @chan.name, :account => account2
+    chan2 = QstServerChannel.make_unsaved :name => @chan.name, :account => account2
     assert chan2.save
   end
 
@@ -97,7 +97,7 @@ class ChannelTest < ActiveSupport::TestCase
       ])
     ]
 
-    msg = AOMessage.make_unsaved :from => 'sms://1', :account => @chan.account, :application => @chan.application
+    msg = AoMessage.make_unsaved :from => 'sms://1', :account => @chan.account, :application => @chan.application
     @chan.route_ao msg, 'test'
 
     assert_equal 'sms://2', msg.from
@@ -112,7 +112,7 @@ class ChannelTest < ActiveSupport::TestCase
       ])
     ]
 
-    msg = AOMessage.make_unsaved :from => 'sms://1', :account => @chan.account, :application => @chan.application
+    msg = AoMessage.make_unsaved :from => 'sms://1', :account => @chan.account, :application => @chan.application
     @chan.route_ao msg, 'test'
 
     assert_equal 'canceled', msg.state
@@ -121,7 +121,7 @@ class ChannelTest < ActiveSupport::TestCase
   end
 
   test "route ao discards message with same from and to" do
-    msg = AOMessage.make_unsaved :from => 'sms://123', :to => 'sms://123', :account => @chan.account, :application => @chan.application
+    msg = AoMessage.make_unsaved :from => 'sms://123', :to => 'sms://123', :account => @chan.account, :application => @chan.application
     @chan.expects(:handle).never
     @chan.route_ao msg, 'test'
 
@@ -129,7 +129,7 @@ class ChannelTest < ActiveSupport::TestCase
   end
 
   test "route ao discards message with invalid to address" do
-    msg = AOMessage.make_unsaved :to => 'sms://hello', :account => @chan.account, :application => @chan.application
+    msg = AoMessage.make_unsaved :to => 'sms://hello', :account => @chan.account, :application => @chan.application
     @chan.route_ao msg, 'test'
 
     msg.reload
@@ -213,9 +213,9 @@ class ChannelTest < ActiveSupport::TestCase
       ],[
         RulesEngine.action('from','sms://4'),
         RulesEngine.action('body','lorem')
-      ])      
+      ])
     ]
-    
+
     @chan.at_rules = [
       RulesEngine.rule([
         RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1'),
@@ -292,6 +292,17 @@ class ChannelTest < ActiveSupport::TestCase
     end
   end
 
+  test "to json with passwords" do
+    @chan.kind = 'clickatell'
+    @chan.direction = 'incoming'
+    @chan.configuration = {:user => 'user', :password => 'password', :api_id => 'api_id', :from => 'something', :incoming_password => 'incoming_pass' }
+
+    chan = JSON.parse(@chan.to_json(:include_passwords =>  true)).with_indifferent_access
+    properties = chan[:configuration]
+
+    assert_equal 5, properties.length
+  end
+
   test "to json restrictions" do
     @chan.restrictions['single'] = 'one'
     @chan.restrictions['multi'] = ['a', 'b']
@@ -321,9 +332,9 @@ class ChannelTest < ActiveSupport::TestCase
       ],[
         RulesEngine.action('from','sms://4'),
         RulesEngine.action('body','lorem')
-      ])      
+      ])
     ]
-    
+
     @chan.at_rules = [
       RulesEngine.rule([
         RulesEngine.matching('from', RulesEngine::OP_EQUALS, 'sms://1'),
@@ -338,7 +349,7 @@ class ChannelTest < ActiveSupport::TestCase
     assert_equal @chan.ao_rules, chan[:ao_rules]
     assert_equal @chan.at_rules, chan[:at_rules]
   end
-  
+
   test "to json last activity at" do
     now = Time.now.utc
     @chan.last_activity_at = now
@@ -355,12 +366,12 @@ class ChannelTest < ActiveSupport::TestCase
     three_was_fifth = false
     10.times do
       chans = []
-      chans << Channel.make_unsaved(:name => '0', :priority => 1)
-      chans << Channel.make_unsaved(:name => '1', :priority => 1)
-      chans << Channel.make_unsaved(:name => '2', :priority => 1, :paused => true)
-      chans << Channel.make_unsaved(:name => '3', :priority => 2)
-      chans << Channel.make_unsaved(:name => '4', :priority => 2)
-      chans << Channel.make_unsaved(:name => '5', :priority => 2, :paused => true)
+      chans << QstServerChannel.make_unsaved(:name => '0', :priority => 1)
+      chans << QstServerChannel.make_unsaved(:name => '1', :priority => 1)
+      chans << QstServerChannel.make_unsaved(:name => '2', :priority => 1, :paused => true)
+      chans << QstServerChannel.make_unsaved(:name => '3', :priority => 2)
+      chans << QstServerChannel.make_unsaved(:name => '4', :priority => 2)
+      chans << QstServerChannel.make_unsaved(:name => '5', :priority => 2, :paused => true)
 
       names = chans.map &:name
 

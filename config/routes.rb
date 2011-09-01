@@ -1,153 +1,125 @@
-ActionController::Routing::Routes.draw do |map|
-  map.resources :custom_attributes, :except => :show
-
-  # Home
-  map.root :controller => 'home'
-  [:interactions, :settings, :applications, :channels, :ao_messages, :at_messages, :logs, :visualizations].each do |name|
-    map.send(name, "/#{name}", :controller => 'home', :action => name)
+Nuntium::Application.routes.draw do
+  resource :session do
+    post :register
+  end
+  resources :applications do
+    collection do
+      put :routing_rules
+    end
+  end
+  resources :channels do
+    member do
+      get :enable
+      get :disable
+      get :pause
+      get :resume
+    end
+  end
+  resources :ao_messages do
+    member do
+      get :thread
+    end
+    collection do
+      post :mark_as_cancelled
+      post :reroute
+      post :simulate_route
+      get :rgviz
+    end
+  end
+  resources :at_messages do
+    member do
+      get :thread
+    end
+    collection do
+      post :mark_as_cancelled
+      post :simulate_route
+      get :rgviz
+    end
+  end
+  resources :logs
+  resources :custom_attributes, :except => :show
+  resource :interactions
+  resource :settings
+  resources :visualizations, :only => :index do
+    get :messages_state_by_day, :on => :collection
   end
 
-  # Interfaces
-  map.resources :rss, :path_prefix => '/:account_name/:application_name', :only => [:index, :create]
-  map.send_ao '/:account_name/:application_name/send_ao.:format', :controller => 'send_ao', :action => :create
-  map.get_ao '/:account_name/:application_name/get_ao.:format', :controller => 'get_ao', :action => :index
+  scope '/:account_id/clickatell', :constraints => {:account_id => /.*/} do
+    match '/incoming' => 'clickatell#index', :as => :clickatell
+    match '/ack' => 'clickatell#ack', :as => :clickatell_ack, :constraints => {:account_id => /.*/}
+  end
 
-  # Qst
-  map.resources :incoming, :path_prefix => '/:account_id/qst', :only => [:index, :create]
-  map.resources :outgoing, :path_prefix => '/:account_id/qst', :only => [:index]
-  map.qst_set_address '/:account_id/qst/setaddress', :controller => 'address', :action => :update
+  match '/clickatell/view_credit' => 'clickatell#view_credit', :as => :clickatel_credit
 
-  # Clickatell
-  map.clickatel_credit '/clickatell/view_credit', :controller => 'clickatell', :action => :view_credit
-  map.clickatel '/:account_id/clickatell/incoming', :controller => 'clickatell', :action => :index
-  map.clickatel_ack '/:account_id/clickatell/ack', :controller => 'clickatell', :action => :ack
+  scope '/channels/twitter' do
+    post '/create' => 'twitter#create', :as => :create_twitter_channel
+    put '/update/:id' => 'twitter#update', :as => :update_twitter_channel
+  end
 
-  # Dtac
-  map.dtac '/:account_id/dtac/incoming', :controller => 'dtac', :action => :index
+  scope '/twitter' do
+    match '/view_rate_limit_status' => 'twitter#view_rate_limit_status', :as => :twitter_rate_limit_status
+    match '/callback' => 'twitter#callback', :as => :twitter_callback
+  end
 
-  # I-POP
-  map.ipop '/:account_id/ipop/:channel_name/incoming', :controller => 'ipop', :action => :index, :conditions => {:method => :post}
-  map.ipop_ack '/:account_id/ipop/:channel_name/ack', :controller => 'ipop', :action => :ack, :conditions => {:method => :post}
-  
-  # Twilio
-  map.twilio '/:account_id/twilio/incoming', :controller => 'twilio', :action => :index
-  map.twilio_ack '/:account_id/twilio/ack', :controller => 'twilio', :action => :ack
+  scope '/:account_id/qst', :constraints => {:account_id => /.*/}  do
+    post '/incoming' => 'qst_server#push', :as => :qst_push
+    get '/incoming' => 'qst_server#get_last_id', :as => :qst_get_last_id, :constraints => {:account_id => /.*/}
+    get '/outgoing' => 'qst_server#pull', :as => :qst_pull, :constraints => {:account_id => /.*/}
+    match '/setaddress' => 'qst_server#set_address', :as => :qst_set_address, :constraints => {:account_id => /.*/}
+  end
 
-  # Accounts
-  map.create_account '/create_account', :controller => 'home', :action => :create_account
-  map.login '/login', :controller => 'home', :action => :login
-  map.logoff '/logoff', :controller => 'home', :action => :logoff
-  map.update_account '/account/update', :controller => 'home', :action => :update_account
-  map.update_application_routing_rules '/account/update_application_routing_rules', :controller => 'home', :action => :update_application_routing_rules
+  scope '/:account_name/:application_name', :constraints => {:account_name => /.*/, :application_name => /.*/} do
+    get '/rss' => 'rss#index', :as => :rss
+    post '/rss' => 'rss#create', :as => :create_rss, :constraints => {:account_name => /.*/, :application_name => /.*/}
 
-  # Twitter mappings must come before generic channel mapping
-  map.create_twitter_channel '/channel/create/twitter', :controller => 'twitter', :action => :create_twitter_channel, :kind => 'twitter'
-  map.update_twitter_channel '/channel/update/twitter/:id', :controller => 'twitter', :action => :update_twitter_channel
-  map.twitter_callback '/twitter_callback', :controller => 'twitter', :action => :twitter_callback
-  map.twitter_rate_limit_status '/twitter/view_rate_limit_status', :controller => 'twitter', :action => :view_rate_limit_status
+    match '/send_ao' => 'ao_messages#create_via_api', :as => :send_ao, :constraints => {:account_name => /.*/, :application_name => /.*/}
+    get '/get_ao' => 'ao_messages#get_ao', :as => :get_ao, :constraints => {:account_name => /.*/, :application_name => /.*/}
+  end
 
-  # Channels
-  map.new_channel '/channel/new/:kind', :controller => 'channel', :action => :new_channel
-  map.create_channel '/channel/create/:kind', :controller => 'channel', :action => :create_channel
-  map.edit_channel '/channel/edit/:id', :controller => 'channel', :action => :edit_channel
-  map.update_channel '/channel/update/:id', :controller => 'channel', :action => :update_channel
-  map.delete_channel '/channel/delete/:id', :controller => 'channel', :action => :delete_channel
-  map.enable_channel '/channel/enable/:id', :controller => 'channel', :action => :enable_channel
-  map.disable_channel '/channel/disable/:id', :controller => 'channel', :action => :disable_channel
-  map.pause_channel '/channel/pause/:id', :controller => 'channel', :action => :pause_channel
-  map.unpause_channel '/channel/resume/:id', :controller => 'channel', :action => :resume_channel
+  match '/:account_id/dtac/incoming' => 'dtac#index', :as => :dtac, :constraints => {:account_id => /.*/}
 
-  # Applications
-  map.new_application '/application/new', :controller => 'home', :action => :new_application
-  map.create_application '/application/create', :controller => 'home', :action => :create_application
-  map.edit_application '/application/edit/:id', :controller => 'home', :action => :edit_application
-  map.update_application '/application/update/:id', :controller => 'home', :action => :update_application
-  map.delete_application '/application/delete/:id', :controller => 'home', :action => :delete_application
+  scope '/:account_id/ipop/:channel_name', :constraints => {:account_id => /.*/} do
+    post '/incoming' => 'ipop#index', :as => :ipop
+    post '/ack' => 'ipop#ack', :as => :ipop_ack, :constraints => {:account_id => /.*/}
+  end
 
-  # Messages
-  map.view_thread '/message/thread', :controller => 'message', :action => :view_thread
+  scope '/:account_id/twilio', :constraints => {:account_id => /.*/} do
+    match '/incoming' => 'twilio#index', :as => :twilio
+    match '/ack' => 'twilio#ack', :as => :twilio_ack
+  end
 
-  # AO messages
-  map.new_ao_message '/message/ao/new', :controller => 'message', :action => :new_ao_message
-  map.create_ao_message '/message/ao/create', :controller => 'message', :action => :create_ao_message
-  map.mark_ao_messages_as_cancelled '/message/ao/mark_as_cancelled', :controller => 'message', :action => :mark_ao_messages_as_cancelled
-  map.mark_ao_messages_as_cancelled '/message/ao/reroute', :controller => 'message', :action => :reroute_ao_messages
-  map.candidate_channels '/message/ao/candidate_channels', :controller => 'message', :action => :candidate_channels
-  map.simulate_route_ao '/message/ao/simulate_route', :controller => 'message', :action => :simulate_route_ao
-  map.simulate_route_at '/message/at/simulate_route', :controller => 'message', :action => :simulate_route_at
-  map.view_ao_message '/message/ao/:id', :controller => 'message', :action => :view_ao_message
-  map.ao_rgviz '/messages/ao/rgviz', :controller => 'message', :action => :ao_rgviz
+  scope '/api' do
+    scope '/carriers' do
+      match '/' => 'api_carrier#index', :as => :carriers
+      match '/:guid' => 'api_carrier#show', :as => :carrier
+    end
 
-  # AT messages
-  map.new_at_message '/message/at/new', :controller => 'message', :action => :new_at_message
-  map.create_at_message '/message/at/create', :controller => 'message', :action => :create_at_message
-  map.mark_at_messages_as_cancelled '/message/at/mark_as_cancelled', :controller => 'message', :action => :mark_at_messages_as_cancelled
-  map.view_at_message '/message/at/:id', :controller => 'message', :action => :view_at_message
-  map.at_rgviz '/messages/at/rgviz', :controller => 'message', :action => :at_rgviz
+    scope '/countries' do
+      match '/' => 'api_country#index', :as => :countries
+      match '/:iso' => 'api_country#show', :as => :country
+    end
 
-  # Visualization
-  map.visualization_ao_state_by_day '/visualization/ao/state_by_day', :controller => 'visualization', :action => :ao_state_by_day
-  map.visualization_at_state_by_day '/visualization/at/state_by_day', :controller => 'visualization', :action => :at_state_by_day
+    scope '/channels' do
+      get '/' => 'api_channel#index', :as => :api_channels_index
+      post '/' => 'api_channel#create', :as => :api_channels_create
+      get '/:name' => 'api_channel#show', :as => :api_channels_show
+      put '/:name' => 'api_channel#update', :as => :api_channels_update
+      delete '/:name' => 'api_channel#destroy', :as => :api_channels_destroy
+      get '/:name/twitter/friendships/create' => 'api_twitter_channel#friendship_create', :as => :api_twitter_follow
+    end
 
-  # Tickets
-  map.tickets_create '/tickets.:format', :conditions => {:method => :post}, :controller => 'tickets', :action => :create
-  map.tickets_show '/tickets/:code.:format', :conditions => {:method => :get},  :controller => 'tickets', :action => :show
+    get '/candidate/channels' => 'api_channel#candidates', :as => :api_candidate_channels
 
-  # API
-  map.countries '/api/countries.:format', :controller => 'api_country', :action => :index
-  map.country '/api/countries/:iso.:format', :controller => 'api_country', :action => :show
-  map.carriers '/api/carriers.:format', :controller => 'api_carrier', :action => :index
-  map.carrier '/api/carriers/:guid.:format', :controller => 'api_carrier', :action => :show
-  map.api_channels_index '/api/channels.:format', :conditions => {:method => :get}, :controller => 'api_channel', :action => :index
-  map.api_channels_create '/api/channels.:format', :conditions => {:method => :post}, :controller => 'api_channel', :action => :create
-  map.api_channels_show '/api/channels/:name.:format', :conditions => {:method => :get}, :controller => 'api_channel', :action => :show
-  map.api_channels_update '/api/channels/:name.:format', :conditions => {:method => :put}, :controller => 'api_channel', :action => :update
-  map.api_channels_destroy '/api/channels/:name', :conditions => {:method => :delete}, :controller => 'api_channel', :action => :destroy
-  map.api_candidate_channels '/api/candidate/channels.:format', :conditions => {:method => :get}, :controller => 'api_channel', :action => :candidates
-  map.api_twitter_follow '/api/channels/:name/twitter/friendships/create', :conditions => {:method => :get}, :controller => 'api_twitter_channel', :action => :friendship_create
-  map.api_custom_attributes_show '/api/custom_attributes', :conditions => {:method => :get}, :controller => 'api_custom_attributes', :action => :show
-  map.api_custom_attributes_show '/api/custom_attributes', :conditions => {:method => :post}, :controller => 'api_custom_attributes', :action => :create_or_update
+    scope '/custom_attributes' do
+      get '/' => 'api_custom_attributes#show', :as => :api_custom_attributes_show
+      post '/api/custom_attributes' => 'api_custom_attributes#create_or_update', :as => :api_custom_attributes_show
+    end
+  end
 
+  scope '/tickets' do
+    post '/' => 'tickets#create'
+    get '/:code' => 'tickets#show'
+  end
 
-  # The priority is based upon order of creation: first created -> highest priority.
-
-  # Sample of regular route:
-  #   map.connect 'products/:id', :controller => 'catalog', :action => 'view'
-  # Keep in mind you can assign values other than :controller and :action
-
-  # Sample of named route:
-  #   map.purchase 'products/:id/purchase', :controller => 'catalog', :action => 'purchase'
-  # This route can be invoked with purchase_url(:id => product.id)
-
-  # Sample resource route (maps HTTP verbs to controller actions automatically):
-  #   map.resources :products
-
-  # Sample resource route with options:
-  #   map.resources :products, :member => { :short => :get, :toggle => :post }, :collection => { :sold => :get }
-
-  # Sample resource route with sub-resources:
-  #   map.resources :products, :has_many => [ :comments, :sales ], :has_one => :seller
-
-  # Sample resource route with more complex sub-resources
-  #   map.resources :products do |products|
-  #     products.resources :comments
-  #     products.resources :sales, :collection => { :recent => :get }
-  #   end
-
-  # Sample resource route within a namespace:
-  #   map.namespace :admin do |admin|
-  #     # Directs /admin/products/* to Admin::ProductsController (app/controllers/admin/products_controller.rb)
-  #     admin.resources :products
-  #   end
-
-  # You can have the root of your site routed with map.root -- just remember to delete public/index.html.
-  # map.root :controller => "welcome"
-
-  # See how all your routes lay out with "rake routes"
-
-  # Install the default routes as the lowest priority.
-  # Note: These default routes make all actions in every controller accessible via GET requests. You should
-  # consider removing or commenting them out if you're using named routes and resources.
-  # map.connect ':controller/:action/:id'
-  # map.connect ':controller/:action/:id.:format'
+  root :to => 'applications#index'
 end

@@ -2,7 +2,7 @@ require 'test_helper'
 
 class SendClickatellMessageJobTest < ActiveSupport::TestCase
   def setup
-    @chan = Channel.make :clickatell
+    @chan = ClickatellChannel.make
   end
 
   should "perform" do
@@ -13,12 +13,12 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
       :content_type => 'text/plain',
       :body => 'ID: msgid')
 
-    msg = AOMessage.make :account => Account.make, :channel => @chan, :guid => '1-2'
+    msg = AoMessage.make :account => Account.make, :channel => @chan, :guid => '1-2'
 
     expect_rest msg, response
     deliver msg
 
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal 'msgid', msg.channel_relative_id
     assert_equal 1, msg.tries
     assert_equal 'delivered', msg.state
@@ -32,16 +32,16 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
       :content_type => 'text/plain',
       :body => 'ERR: 105, Invalid destination address')
 
-    msg = AOMessage.make :account => Account.make, :channel => @chan
+    msg = AoMessage.make :account => Account.make, :channel => @chan
 
     expect_rest msg, response
     deliver msg
 
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal 1, msg.tries
     assert_equal 'failed', msg.state
 
-    logs = AccountLog.all
+    logs = Log.all
     assert_equal 1, logs.length
     assert_true logs[0].message.include?('105, Invalid destination address')
 
@@ -57,7 +57,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
       :content_type => 'text/plain',
       :body => 'ERR: 002, Unknown username or password')
 
-    msg = AOMessage.make :account => Account.make, :channel => @chan
+    msg = AoMessage.make :account => Account.make, :channel => @chan
 
     expect_rest msg, response
     begin
@@ -67,7 +67,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
       fail "Expected exception to be thrown"
     end
 
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal 1, msg.tries
     assert_equal 'queued', msg.state
 
@@ -97,7 +97,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
   end
 
   def check_message_was_delivered(channel_relative_id)
-    msg = AOMessage.first
+    msg = AoMessage.first
     assert_equal channel_relative_id, msg.channel_relative_id
     assert_equal 1, msg.tries
     assert_equal 'delivered', msg.state

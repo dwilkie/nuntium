@@ -10,8 +10,8 @@ class SendInterfaceCallbackJob
 
   def perform
     @account = Account.find_by_id @account_id
-    @app = @account.find_application @application_id
-    @msg = ATMessage.get_message @message_id
+    @app = @account.applications.find_by_id @application_id
+    @msg = AtMessage.get_message @message_id
     return if @msg.state != 'queued'
 
     @msg.tries += 1
@@ -33,7 +33,7 @@ class SendInterfaceCallbackJob
         :subject => @msg.subject.try(:sanitize),
         :body => @msg.body.try(:sanitize),
         :guid => @msg.guid,
-        :channel => @msg.channel.name
+        :channel => @msg.channel.try(:name)
       }.merge(@msg.custom_attributes)
       data = data.to_query if @app.interface == 'http_get_callback'
     end
@@ -54,7 +54,7 @@ class SendInterfaceCallbackJob
           @msg.state = 'delivered'
           @msg.save!
 
-          ATMessage.log_delivery([@msg], @account, 'http_post_callback')
+          AtMessage.log_delivery([@msg], @account, 'http_post_callback')
 
           # If the response includes a body, create an AO message from it
           if res.body.present?
@@ -63,17 +63,17 @@ class SendInterfaceCallbackJob
               hashes = JSON.parse(res.body)
               hashes = [hashes] unless hashes.is_a? Array
               hashes.each do |hash|
-                parsed = AOMessage.from_hash hash
+                parsed = AoMessage.from_hash hash
                 parsed.token ||= @msg.token
                 @app.route_ao parsed, 'http post callback'
               end
             when 'application/xml'
-              AOMessage.parse_xml(res.body) do |parsed|
+              AoMessage.parse_xml(res.body) do |parsed|
                 parsed.token ||= @msg.token
                 @app.route_ao parsed, 'http post callback'
               end
             else
-              reply = AOMessage.new :from => @msg.to, :to => @msg.from, :body => res.body
+              reply = AoMessage.new :from => @msg.to, :to => @msg.from, :body => res.body
               reply.token = @msg.token
               @app.route_ao reply, 'http post callback'
             end

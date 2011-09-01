@@ -1,9 +1,7 @@
 class ApiChannelController < ApiAuthenticatedController
-
   # GET /api/channels.:format
   def index
-    channels = @account.channels
-    channels = channels.select{|c| c.application_id.nil? || c.application_id == @application.id}
+    channels = @account.channels.where('application_id = ? OR application_id IS NULL', @application.id).all
     channels.each do |c|
       c.account = @account
       c.application = @application if c.application_id
@@ -14,7 +12,7 @@ class ApiChannelController < ApiAuthenticatedController
 
   # GET /api/channels/:name.:format
   def show
-    chan = @account.find_channel params[:name]
+    chan = @account.channels.find_by_name params[:name]
 
     return head :not_found unless chan
 
@@ -34,16 +32,14 @@ class ApiChannelController < ApiAuthenticatedController
       chan.application = @application
     else
       app_name = data[:application] || (data[:channel] && data[:channel][:application])
-      if app_name
-        chan.application = @account.find_application app_name
-      end
+      chan.application = @account.applications.find_by_name app_name if app_name
     end
     save chan, 'creating'
   end
 
   # PUT /api/channels/:name.:format
   def update
-    chan = @account.find_channel params[:name]
+    chan = @account.channels.find_by_name params[:name]
 
     return head :not_found unless chan
     return head :forbidden if @application && !chan.application_id
@@ -58,14 +54,14 @@ class ApiChannelController < ApiAuthenticatedController
 
     new_app_name = data[:application] || (data[:channel] && data[:channel][:application])
     if new_app_name
-      chan.application = @account.find_application new_app_name
+      chan.application = @account.applications.find_name new_app_name
     end
     save chan, 'updating'
   end
 
   # DELETE /api/channels/:name
   def destroy
-    chan = @account.find_channel params[:name]
+    chan = @account.channels.find_by_name params[:name]
 
     return head :not_found unless chan
     return head :forbidden if @application && !chan.application_id
@@ -78,7 +74,7 @@ class ApiChannelController < ApiAuthenticatedController
   def candidates
     return head :bad_request unless @application
 
-    msg = AOMessage.from_hash params
+    msg = AoMessage.from_hash params
     msg.account_id = @account.id
 
     channels = @application.candidate_channels_for_ao msg
@@ -90,7 +86,7 @@ class ApiChannelController < ApiAuthenticatedController
   def respond(object)
     respond_to do |format|
       format.xml { render :xml => object.to_xml(:root => 'channels', :skip_types => true) }
-      format.json { render :json => object.to_json }
+      format.json { render :json => object }
     end
   end
 
@@ -107,7 +103,6 @@ class ApiChannelController < ApiAuthenticatedController
   end
 
   def errors_to_xml(errors, action)
-    require 'builder'
     xml = Builder::XmlMarkup.new(:indent => 2)
     xml.instruct!
     xml.error :summary => "There were problems #{action} the channel" do
@@ -126,7 +121,6 @@ class ApiChannelController < ApiAuthenticatedController
     errors.each do |name, value|
       attrs[:properties] << { name => value }
     end
-    attrs.to_json
+    attrs
   end
-
 end

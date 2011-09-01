@@ -7,9 +7,9 @@ development:
 
 test: &test
   <<: *defaults
-  
+
 staging:
   <<: *defaults
-  
+
 production:
   <<: *defaults

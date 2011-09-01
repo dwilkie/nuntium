@@ -1,51 +1,43 @@
 # Filters added to this controller apply to all controllers in the application.
 # Likewise, all the methods added will be available for all controllers.
 
-require 'stringio'
-require 'zlib'
-
 class ApplicationController < ActionController::Base
   helper :all # include all helpers, all the time
   # protect_from_forgery # See ActionController::RequestForgeryProtection for details
 
-  # Scrub sensitive parameters from your log
-  filter_parameter_logging :password
+  ResultsPerPage = 10
 
-  # Given an array of AOMessage or ATMessage, this methods
-  # returns two arrays:
-  #  - The first one has the messages which have tries < account.max_tries
-  #  - The second one has the messages which have tries >= account.max_tries
-  def filter_tries_exceeded_and_not_exceeded(msgs, account)
-    valid_messages = []
-    invalid_messages = []
-    
-    msgs.each do |msg|
-      if msg.tries >= account.max_tries
-        invalid_messages.push msg
-      else
-        valid_messages.push msg
-      end
-    end
-    
-    [valid_messages, invalid_messages]
-  end
-  
-  def compress
-    accept = self.request.env['HTTP_ACCEPT_ENCODING']
-    if accept && accept.match(/gzip/)
-      encoding = self.response.headers["Content-Transfer-Encoding"]
-      if encoding != 'binary'
-        begin 
-          ostream = StringIO.new
-          gz = Zlib::GzipWriter.new(ostream)
-          gz.write(self.response.body)
-          self.response.body = ostream.string
-          self.response.headers['Content-Encoding'] = 'gzip'
-        ensure
-          gz.close
-        end
-      end
+  expose(:account) { Account.find_by_id session[:account_id] }
+
+  expose(:applications) { account.applications }
+  expose(:application)
+
+  expose(:channels) { account.channels.includes(:application) }
+  expose(:channel) do
+    if params[:id] || params[:channel_id]
+      channel = channels.find(params[:id] || params[:channel_id])
+      channel.attributes = params[:channel] if params[:channel]
+      channel
+    elsif params[:channel]
+      params[:channel][:kind].to_channel.new params[:channel]
+    else
+      params[:kind].to_channel.new
     end
   end
 
+  expose(:app_routing_rules) { account.app_routing_rules }
+
+  before_filter :check_login
+  def check_login
+    unless session[:account_id]
+      redirect_to new_session_path
+      return
+    end
+
+    unless account
+      session.delete :account_id
+      redirect_to new_session_path
+      return
+    end
+  end
 end

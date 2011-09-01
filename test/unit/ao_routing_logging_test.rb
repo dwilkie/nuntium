@@ -10,7 +10,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
 
   [false, true].each do |simulate|
     test "message received via interface simulate = #{simulate}" do
-      @msg = AOMessage.make_unsaved :to => 'foo'
+      @msg = AoMessage.make_unsaved :to => 'foo'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -19,7 +19,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     end
 
     test "protocol not found simulate = #{simulate}" do
-      @msg = AOMessage.make_unsaved :to => 'foo'
+      @msg = AoMessage.make_unsaved :to => 'foo'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -30,7 +30,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "save country mobile number information simulate = #{simulate}" do
       country = Country.make
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @msg.country = country.iso2
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -42,7 +42,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "save carrier mobile number information simulate = #{simulate}" do
       carrier = Carrier.make
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @msg.carrier = carrier.guid
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -54,7 +54,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "inferred country simulate = #{simulate}" do
       country = Country.make
 
-      @msg = AOMessage.make_unsaved :to => "sms://#{country.phone_prefix}12"
+      @msg = AoMessage.make_unsaved :to => "sms://#{country.phone_prefix}12"
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -66,7 +66,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       country1 = Country.make :phone_prefix => '12'
       country2 = Country.make :phone_prefix => country1.phone_prefix
 
-      @msg = AOMessage.make_unsaved :to => "sms://#{country1.phone_prefix}34"
+      @msg = AoMessage.make_unsaved :to => "sms://#{country1.phone_prefix}34"
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -78,7 +78,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "inferred carrier simulate = #{simulate}" do
       carrier = Carrier.make
 
-      @msg = AOMessage.make_unsaved :to => "sms://#{carrier.country.phone_prefix}#{carrier.prefixes}"
+      @msg = AoMessage.make_unsaved :to => "sms://#{carrier.country.phone_prefix}#{carrier.prefixes}"
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -88,7 +88,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
 
     test "inferred country from mobile number simulate = #{simulate}" do
       country = Country.make
-      @msg = AOMessage.make_unsaved :to => "sms://xx12"
+      @msg = AoMessage.make_unsaved :to => "sms://xx12"
       MobileNumber.create! :number => @msg.to.mobile_number, :country_id => country.id
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -99,7 +99,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
 
     test "inferred carrier from mobile number simulate = #{simulate}" do
       carrier = Carrier.make
-      @msg = AOMessage.make_unsaved :to => "sms://xx12"
+      @msg = AoMessage.make_unsaved :to => "sms://xx12"
       MobileNumber.create! :number => @msg.to.mobile_number, :carrier_id => carrier.id
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -114,7 +114,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @app.save!
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1234'
+      @msg = AoMessage.make_unsaved :from => 'sms://1234'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -129,7 +129,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @app.save!
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -144,7 +144,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @app.save!
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1234'
+      @msg = AoMessage.make_unsaved :from => 'sms://1234'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -156,7 +156,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "channels left after restrictions simulate = #{simulate}" do
       create_channels
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -167,7 +167,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "suggested channel not in candidates simulate = #{simulate}" do
       create_channels
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @msg.suggested_channel = @chan3.name
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -179,7 +179,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "suggested channel in candidates simulate = #{simulate}" do
       create_channels
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @msg.suggested_channel = @chan1.name
       @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -191,7 +191,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "known address sources simulate = #{simulate}" do
       create_channels
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
 
       AddressSource.create! :address => @msg.to, :channel_id => @chan1.id, :updated_at => (Time.now - 10), :account_id => @app.account_id, :application_id => @app.id
       AddressSource.create! :address => @msg.to, :channel_id => @chan2.id, :account_id => @app.account_id, :application_id => @app.id
@@ -206,7 +206,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "selected from address sources simulate = #{simulate}" do
       create_channels
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
 
       AddressSource.create! :address => @msg.to, :channel_id => @chan1.id, :updated_at => (Time.now - 10), :account_id => @app.account_id, :application_id => @app.id
       AddressSource.create! :address => @msg.to, :channel_id => @chan2.id, :account_id => @app.account_id, :application_id => @app.id
@@ -219,7 +219,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     end
 
     test "no suitable channel simulate = #{simulate}" do
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -230,7 +230,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "routed to channel simulate = #{simulate}" do
       create_channels 1
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -248,7 +248,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @chan1.save!
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1234'
+      @msg = AoMessage.make_unsaved :from => 'sms://1234'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -264,7 +264,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @chan1.save!
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1234'
+      @msg = AoMessage.make_unsaved :from => 'sms://1234'
       @app.route_ao @msg, 'test', :simulate => simulate
 
       @log = check_log :simulate => simulate
@@ -276,7 +276,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "strategy override simulate = #{simulate}" do
       create_channels 2
 
-      @msg = AOMessage.make_unsaved
+      @msg = AoMessage.make_unsaved
       @msg.strategy = 'broadcast'
       result = @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -286,7 +286,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
         assert_equal 3, logs.length
         assert_true logs[0].include? "Strategy overwritten by message to 'broadcast'"
       else
-        @log = AccountLog.first :conditions => "ao_message_id = #{@msg.id}"
+        @log = @msg.logs.first
         check_log :log => @log
         assert_in_log "Strategy overwritten by message to 'broadcast'"
       end
@@ -305,7 +305,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
       ]
       @chan2.save!
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1234'
+      @msg = AoMessage.make_unsaved :from => 'sms://1234'
       @msg.strategy = 'broadcast'
       result = @app.route_ao @msg, 'test', :simulate => simulate
 
@@ -320,10 +320,10 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
         assert_true logs[2].include? "Applying channel ao rules..."
         assert_true logs[2].include? "'from' changed from 'sms://1234' to 'sms://8765'"
       else
-        copies = AOMessage.all :conditions => "parent_id = #{@msg.id}"
+        copies = @msg.children
 
         @msg = copies[0]
-        @log = AccountLog.first :conditions => "ao_message_id = #{@msg.id}"
+        @log = @msg.logs.first
         check_log :log => @log
         assert_equal @chan1.id, @log.channel_id
 
@@ -331,7 +331,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
         assert_in_log "'from' changed from 'sms://1234' to 'sms://5678'"
 
         @msg = copies[1]
-        @log = AccountLog.first :conditions => "ao_message_id = #{@msg.id}"
+        @log = @msg.logs.first
         check_log :log => @log
         assert_equal @chan2.id, @log.channel_id
 
@@ -343,10 +343,10 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "message 'from' and 'to' are the same simulate = #{simulate}" do
       create_channels 1
 
-      @msg = AOMessage.make_unsaved :from => 'sms://1', :to => 'sms://1'
+      @msg = AoMessage.make_unsaved :from => 'sms://1', :to => 'sms://1'
       @app.route_ao @msg, 'test', :simulate => simulate
 
-      @log = check_log :simulate => simulate, :severity => AccountLog::Warning
+      @log = check_log :simulate => simulate, :severity => Log::Warning
 
       assert_in_log "Message 'from' and 'to' addresses are the same. The message will be discarded."
     end
@@ -354,19 +354,19 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     test "message 'to' is invalid simulate = #{simulate}" do
       create_channels 1
 
-      @msg = AOMessage.make_unsaved :to => 'sms://hello'
+      @msg = AoMessage.make_unsaved :to => 'sms://hello'
       @app.route_ao @msg, 'test', :simulate => simulate
 
-      @log = check_log :simulate => simulate, :severity => AccountLog::Warning
+      @log = check_log :simulate => simulate, :severity => Log::Warning
 
       assert_in_log "Message 'to' address is invalid. The message will be discarded."
     end
   end
 
   def create_channels(ammount = 3)
-    @chan1 = Channel.make :account_id => @app.account_id, :protocol => 'sms' if ammount >= 1
-    @chan2 = Channel.make :account_id => @app.account_id, :protocol => 'sms' if ammount >= 2
-    @chan3 = Channel.make :account_id => @app.account_id, :protocol => 'foo' if ammount >= 3
+    @chan1 = QstServerChannel.make :account_id => @app.account_id, :protocol => 'sms' if ammount >= 1
+    @chan2 = QstServerChannel.make :account_id => @app.account_id, :protocol => 'sms' if ammount >= 2
+    @chan3 = QstServerChannel.make :account_id => @app.account_id, :protocol => 'foo' if ammount >= 3
   end
 
   def assert_in_log(message)
@@ -384,7 +384,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     if options[:log]
       log = options[:log]
     else
-      logs = AccountLog.all
+      logs = Log.all
       assert_equal 1, logs.length
 
       log = logs[0]
@@ -392,7 +392,7 @@ class AORoutingLoggingTest < ActiveSupport::TestCase
     assert_equal @app.account_id, log.account_id
     assert_equal @app.id, log.application_id
     assert_equal @msg.id, log.ao_message_id
-    assert_equal (options[:severity] || AccountLog::Info), log.severity
+    assert_equal (options[:severity] || Log::Info), log.severity
 
     log
   end

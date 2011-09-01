@@ -8,11 +8,11 @@ class SmppTransceiverDelegate
   def initialize(transceiver, channel)
     @transceiver = transceiver
     @channel = channel
-    @encodings = @channel.configuration[:mt_encodings].map { |x| encoding_endianized(x, :mt) }
-    @mt_max_length = @channel.configuration[:mt_max_length].to_i
-    @mt_csms_method = @channel.configuration[:mt_csms_method]
+    @encodings = @channel.mt_encodings.map { |x| encoding_endianized(x, :mt) }
+    @mt_max_length = @channel.mt_max_length.to_i
+    @mt_csms_method = @channel.mt_csms_method
     @delivery_report_cache = Cache.new(nil, nil, 100, 86400)
-    @default_mo_encoding = @channel.configuration[:default_mo_encoding]
+    @default_mo_encoding = @channel.default_mo_encoding
   end
 
   def send_message(id, from, to, text)
@@ -28,7 +28,7 @@ class SmppTransceiverDelegate
     end
 
     if msg_text.nil?
-      logger.warning "Could not find suitable encoding for AOMessage with id #{id}"
+      logger.warning "Could not find suitable encoding for AoMessage with id #{id}"
       return "Could not find suitable encoding"
     end
 
@@ -150,8 +150,8 @@ class SmppTransceiverDelegate
       msg_reference = (pdu.receipted_message_id || pdu.msg_reference)
     end
 
-    msg = AOMessage.first(:conditions => ['channel_id = ? AND channel_relative_id = ?', @channel.id, msg_reference])
-    return logger.info "AOMessage with channel_relative_id #{msg_reference} not found" if msg.nil?
+    msg = @channel.ao_messages.where(:channel_relative_id => msg_reference).first
+    return logger.info "AoMessage with channel_relative_id #{msg_reference} not found" if msg.nil?
 
     # Reflect in message state
     if pdu.message_state
@@ -171,14 +171,14 @@ class SmppTransceiverDelegate
     logger.info "Delegate: message_accepted: id #{mt_message_id} smsc ref id: #{pdu.message_id}"
 
     # Find message with mt_message_id
-    msg = AOMessage.find_by_id mt_message_id
-    return logger.info "AOMessage with id #{mt_message_id} not found (ref id: #{pdu.message_id})" if msg.nil?
+    msg = AoMessage.find_by_id mt_message_id
+    return logger.info "AoMessage with id #{mt_message_id} not found (ref id: #{pdu.message_id})" if msg.nil?
 
     # smsc_message_id comes in hexadecimal
     reference_id = normalize(pdu.message_id)
 
     # Blank all messages with that reference id in case the reference id is already used
-    AOMessage.update_all(['channel_relative_id = ?', nil], ['channel_id = ? AND channel_relative_id = ?', @channel.id, reference_id])
+    AoMessage.update_all(['channel_relative_id = ?', nil], ['channel_id = ? AND channel_relative_id = ?', @channel.id, reference_id])
 
     # And set this message's channel relative id to later look it up
     # in the delivery_report_received method
@@ -197,8 +197,8 @@ class SmppTransceiverDelegate
     logger.info "Delegate: message_sent_with_error: id #{mt_message_id} pdu_command_status: #{pdu.command_status}"
 
     # Find message with mt_message_id
-    msg = AOMessage.find_by_id mt_message_id
-    return logger.info "AOMessage with id #{mt_message_id} not found (pdu_command_status: #{pdu.command_status})" if msg.nil?
+    msg = AoMessage.find_by_id mt_message_id
+    return logger.info "AoMessage with id #{mt_message_id} not found (pdu_command_status: #{pdu.command_status})" if msg.nil?
 
     msg.state = 'failed'
     msg.tries += 1
@@ -211,10 +211,10 @@ class SmppTransceiverDelegate
   end
 
   def create_at_message(source, destination, data_coding, text)
-    msg = ATMessage.new
+    msg = AtMessage.new
     msg.from = source.with_protocol 'sms'
     msg.to = destination.with_protocol 'sms'
-    if (@channel.configuration[:accept_mo_hex_string].to_b) and text.is_hex?
+    if (@channel.accept_mo_hex_string.to_b) and text.is_hex?
       bytes = text.hex_to_bytes
       iconv = Iconv.new('utf-8', ucs2_endianized(:mo))
       msg.body = iconv.iconv bytes
@@ -223,10 +223,10 @@ class SmppTransceiverDelegate
         msg.body = GsmDecoder.decode text
       else
         source_encoding = case data_coding
-          when 0: encoding_endianized(@default_mo_encoding, :mo)
-          when 1: 'ascii'
-          when 3: 'latin1'
-          when 8: ucs2_endianized(:mo)
+          when 0 then encoding_endianized(@default_mo_encoding, :mo)
+          when 1 then 'ascii'
+          when 3 then 'latin1'
+          when 8 then ucs2_endianized(:mo)
         end
 
         if source_encoding
@@ -243,10 +243,10 @@ class SmppTransceiverDelegate
 
   def part_received(source, destination, data_coding, text, ref, total, partn)
     # Discard unused message parts after one hour
-    SmppMessagePart.delete_all(['created_at < ?', Time.current - 1.hour])
+    SmppMessagePart.where('created_at < ?', Time.current - 1.hour).delete_all
 
-    conditions = ['channel_id = ? AND source = ? AND reference_number = ?', @channel.id, source, ref]
-    parts = SmppMessagePart.all(:conditions => conditions)
+    parts = @channel.smpp_message_parts.where(:source => source, :reference_number => ref)
+    all_parts = parts.all
 
     # If all other parts are here
     if parts.length == total-1
@@ -259,16 +259,15 @@ class SmppTransceiverDelegate
       create_at_message source, destination, data_coding, text
 
       # Delete stored information
-      SmppMessagePart.delete_all conditions
+      parts.delete_all
     else
       # Just save the part
-      SmppMessagePart.create(
-      :channel_id => @channel.id,
-      :reference_number => ref,
-      :part_count => total,
-      :part_number => partn,
-      :text => text,
-      :source => source
+      @channel.smpp_message_parts.create(
+        :reference_number => ref,
+        :part_count => total,
+        :part_number => partn,
+        :text => text,
+        :source => source
       )
     end
   end
@@ -306,7 +305,7 @@ class SmppTransceiverDelegate
   end
 
   def ucs2_endianized(direction)
-    endianness = @channel.configuration[direction == :mo ? :endianness_mo : :endianness_mt]
+    endianness = direction == :mo ? @channel.endianness_mo : @channel.endianness_mt
     endianness == 'little' ? 'ucs-2le' : 'ucs-2be'
   end
 

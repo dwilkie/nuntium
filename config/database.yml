@@ -4,7 +4,7 @@ development:
   adapter: mysql
   database: nuntium_development
   username: root
-  password: 
+  password:
   pool: 5
   timeout: 5000
   reconnect: true
@@ -16,15 +16,15 @@ test:
   adapter: mysql
   database: nuntium_test
   username: root
-  password: 
+  password:
   pool: 5
   timeout: 5000
-  
+
 cucumber:
   adapter: mysql
   database: nuntium_cucumber
   username: root
-  password: 
+  password:
   pool: 5
   timeout: 5000
 
