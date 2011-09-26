@@ -1,6 +1,9 @@
 require 'smpp'
 
-class SmppService < Service
+class SmppService < ChannelService
+end
+
+class SmppConnection
   def initialize(channel)
     @channel = channel
   end
@@ -10,9 +13,12 @@ class SmppService < Service
     @gateway.start
   end
 
+  def notify_connection_status
+    @gateway.notify_connection_status
+  end
+
   def stop
     @gateway.stop
-    EM.stop_event_loop
   end
 end
 
@@ -66,18 +72,17 @@ class SmppGateway < SmppTransceiverDelegate
 
   def start
     connect
-    notify_connection_status_loop
     @is_running = true
   end
 
   def connect
-    Rails.logger.info "Connecting to SMSC"
+    Rails.logger.info "[#{@channel.name}] Connecting to SMSC"
 
     @transceiver = EM.connect(@config[:host], @config[:port], MyTransceiver, @config, self)
   end
 
   def stop
-    Rails.logger.info "Closing SMPP connection"
+    Rails.logger.info "[#{@channel.name}] Closing SMPP connection"
 
     self.channel_connected = false
 
@@ -87,7 +92,7 @@ class SmppGateway < SmppTransceiverDelegate
   end
 
   def bound(transceiver)
-    Rails.logger.info "Delegate: transceiver bound"
+    Rails.logger.info "[#{@channel.name}] Delegate: transceiver bound"
 
     self.channel_connected = true
 
@@ -104,7 +109,7 @@ class SmppGateway < SmppTransceiverDelegate
 
     # Queue full
     when *@suspension_codes
-      Rails.logger.info "Received ESME_RMSGQFUL or ESME_RHTORTTLED (#{pdu.command_status})"
+      Rails.logger.info "[#{@channel.name}] Received ESME_RMSGQFUL or ESME_RHTORTTLED (#{pdu.command_status})"
       unsubscribe_temporarily
 
     # Message source or address not valid
@@ -127,34 +132,37 @@ class SmppGateway < SmppTransceiverDelegate
   end
 
   def unbound(transceiver)
-    Rails.logger.info "Delegate: transceiver unbound"
+    Rails.logger.info "[#{@channel.name}] Delegate: transceiver unbound"
 
     self.channel_connected = false
 
-    unsubscribe_queue
+    @channel.reload
 
-    if @is_running
-      Rails.logger.warn "Disconnected. Reconnecting in 5 seconds..."
-      sleep 5
-      connect if @is_running
+    if @is_running && @channel.active?
+      unsubscribe_queue
+
+      if @is_running
+        Rails.logger.warn "[#{@channel.name}] Disconnected. Reconnecting in 5 seconds..."
+        sleep 5
+        connect if @is_running
+      end
     end
   end
 
-  private
-
   def subscribe_queue
-    Rails.logger.info "Subscribing to message queue"
+    Rails.logger.info "[#{@channel.name}] Subscribing to message queue"
 
     Queues.subscribe_ao(@channel, @mq) do |header, job|
+      Rails.logger.debug "[#{@channel.name}] Executing job #{job}"
       begin
         if job.perform(self)
           @pending_headers[job.message_id] = header
         else
           header.ack
         end
-      rescue Exception => e
-        Rails.logger.error "Error when performing job. Exception: #{e.class} #{e}"
-        unsubscribe_temporarily
+      rescue Exception => ex
+        Rails.logger.info "[#{@channel.name}] Error when performing job. Exception: #{ex.class} #{ex}"
+        reschedule job, header, ex
       end
 
       sleep_time
@@ -164,12 +172,21 @@ class SmppGateway < SmppTransceiverDelegate
   end
 
   def unsubscribe_queue
-    Rails.logger.info "Unsubscribing from message queue"
+    Rails.logger.info "[#{@channel.name}] Unsubscribing from message queue"
 
     @mq = Queues.reconnect(@mq)
     @mq.prefetch @prefetch_count
 
     @subscribed = false
+  end
+
+  def reschedule(job, header, ex)
+    job.reschedule ex
+  rescue => ex
+    Rails.logger.info "[#{@channel.name}] Exception rescheduling #{job}: #{ex.class} #{ex} #{ex.backtrace}"
+    unsubscribe_temporarily
+  else
+    header.ack
   end
 
   def unsubscribe_temporarily
@@ -184,7 +201,7 @@ class SmppGateway < SmppTransceiverDelegate
     if header
       header.ack
     else
-      Rails.logger.error "Pending header not found for message id: #{message_id}"
+      Rails.logger.error "[#{@channel.name}] Pending header not found for message id: #{message_id}"
     end
   end
 
@@ -199,9 +216,7 @@ class SmppGateway < SmppTransceiverDelegate
     @channel.connected = value
   end
 
-  def notify_connection_status_loop
-    EM.add_periodic_timer 1.minute do
-      @channel.connected = @connected
-    end
+  def notify_connection_status
+    @channel.connected = @connected
   end
 end

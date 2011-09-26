@@ -12,8 +12,8 @@ class Channel < ActiveRecord::Base
   belongs_to :account
   belongs_to :application
 
-  has_many :ao_messages
-  has_many :at_messages
+  has_many :ao_messages, :conditions => proc { { :account_id => self.account_id } }
+  has_many :at_messages, :conditions => proc { { :account_id => self.account_id } }
   has_many :address_sources
 
   serialize :configuration, Hash
@@ -30,11 +30,15 @@ class Channel < ActiveRecord::Base
   validates_numericality_of :throttle, :allow_nil => true, :only_integer => true, :greater_than_or_equal_to => 0
   validates_numericality_of :ao_cost, :greater_than_or_equal_to => 0, :allow_nil => true
   validates_numericality_of :at_cost, :greater_than_or_equal_to => 0, :allow_nil => true
+  validate :check_valid_in_ui, :if => lambda { @must_check_valid_in_ui }
 
   scope :enabled, where(:enabled => true)
   scope :disabled, where(:enabled => false)
+  scope :paused, where(:paused => true)
+  scope :unpaused, where(:paused => false)
   scope :outgoing, where(:direction => [Outgoing, Bidirectional])
   scope :incoming, where(:direction => [Incoming, Bidirectional])
+  scope :active, where(:enabled => true, :paused => false)
 
   after_update :reroute_messages, :if => lambda { enabled_changed? && !enabled }
 
@@ -58,6 +62,10 @@ class Channel < ActiveRecord::Base
       result = x.configuration[:_p] <=> y.configuration[:_p] if result == 0
       result
     end
+  end
+
+  def must_check_valid_in_ui!
+    @must_check_valid_in_ui = true
   end
 
   def incoming?
@@ -165,6 +173,10 @@ class Channel < ActiveRecord::Base
     !!(Rails.cache.read connected_cache_key)
   end
 
+  def active?
+    enabled? && !paused?
+  end
+
   def self.connected(channels)
     keys = channels.select(&:has_connection?).map(&:connected_cache_key)
     hash = Rails.cache.read_multi *keys
@@ -173,6 +185,8 @@ class Channel < ActiveRecord::Base
 
   def configuration
     self[:configuration] ||= {}
+    self[:configuration].symbolize_keys! if self[:configuration].respond_to? :symbolize_keys!
+    self[:configuration]
   end
 
   def restrictions

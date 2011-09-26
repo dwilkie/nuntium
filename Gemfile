@@ -1,9 +1,9 @@
 source :rubygems
 
 gem 'rails', '3.0.9'
-gem 'mysql'
+gem 'mysql2', "0.2.13"
 gem 'libxml-ruby', :require => 'xml/libxml'
-gem "tmail"
+gem "mail"
 gem 'will_paginate', '~> 3.0'
 gem "guid"
 gem 'twitter', '0.9.4'
@@ -22,17 +22,13 @@ gem 'json'
 gem 'rgviz'
 gem 'rgviz-rails', :require => 'rgviz_rails'
 gem 'smart_asset'
-gem 'blather', '0.4.15'
+gem 'blather'
 gem 'dynamic_form'
 gem 'ci_reporter'
 gem 'daemons'
 gem 'decent_exposure'
 gem 'jquery-rails', '>= 1.0.12'
 gem 'twilio-ruby'
-
-group :web do
-  gem 'rails', '3.0.9'
-end
 
 group :test do
   gem 'test-unit', :require => 'test/unit'
