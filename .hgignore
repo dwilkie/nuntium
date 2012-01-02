@@ -1,17 +1,9 @@
 syntax: glob
-*.log
-*.sqlite3
-*.tmp*~
+.bundle/config
+log/*.log*
 *.orig
-*.pid
-*.*~
-sqlite3.dll
-vendor
+tmp
 twitter_oauth_consumer.yml
-.loadpath
-erl_crash.dump
-nohup.out
-tags
 public/stylesheets/packaged
 public/javascripts/packaged
 config/settings.yml

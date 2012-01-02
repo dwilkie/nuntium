@@ -1,16 +1,15 @@
 source :rubygems
 
 gem 'rails', '3.0.9'
-gem 'mysql'
+gem 'mysql2', :git => 'git://github.com/brianmario/mysql2.git', :branch => '0.2.x'
 gem 'libxml-ruby', :require => 'xml/libxml'
-gem "tmail"
+gem "mail"
 gem 'will_paginate', '~> 3.0'
 gem "guid"
 gem 'twitter', '0.9.4'
 gem 'ruby-smpp', '0.2.1', :require => 'smpp'
 gem "eventmachine"
 gem 'amqp'
-gem 'memcached'
 gem 'memcache-client'
 gem 'xmpp4r'
 gem 'rest-client', :require => 'rest_client'
@@ -22,7 +21,7 @@ gem 'json'
 gem 'rgviz'
 gem 'rgviz-rails', :require => 'rgviz_rails'
 gem 'smart_asset'
-gem 'blather', '0.4.15'
+gem 'blather'
 gem 'dynamic_form'
 gem 'ci_reporter'
 gem 'daemons'
@@ -36,16 +35,4 @@ group :test do
   gem "thoughtbot-shoulda", :require => "shoulda"
   gem 'ffaker'
   gem 'machinist'
-end
-
-group :cucumber do
-  gem 'test-unit', :require => 'test/unit'
-  gem "mocha"
-  gem "thoughtbot-shoulda", :require => "shoulda"
-  gem 'ffaker'
-  gem 'machinist'
-  gem 'cucumber'
-  gem 'cucumber-rails',   '>=0.3.1', :require => false
-  gem 'database_cleaner', '>=0.5.0', :require => false
-  gem 'capybara',         '>=0.3.5', :require => false
 end

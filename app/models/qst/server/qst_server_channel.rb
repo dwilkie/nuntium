@@ -1,8 +1,6 @@
 require 'digest/sha1'
 
 class QstServerChannel < Channel
-  include ActionView::Helpers::DateHelper
-
   has_many :qst_outgoing_messages, :foreign_key => 'channel_id'
 
   validates_presence_of :password
@@ -39,6 +37,8 @@ class QstServerChannel < Channel
   end
 
   def info
+    self.class.send :include, ActionView::Helpers::DateHelper
+
     "Last activity: " + (last_activity_at ? "#{time_ago_in_words(last_activity_at)} ago" : 'never')
   end
 
@@ -60,7 +60,7 @@ class QstServerChannel < Channel
   end
 
   def decoded_salt
-    Base64.decode64 salt
+    Base64.decode64 self.salt
   end
 
   def encode_password(salt, password)
