@@ -1,3 +1,5 @@
+require 'twilio-ruby'
+
 class SendTwilioMessageJob < SendMessageJob
   @@max_length = 160
 

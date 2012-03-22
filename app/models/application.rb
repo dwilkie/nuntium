@@ -1,4 +1,5 @@
 require 'digest/sha2'
+require 'guid'
 
 class Application < ActiveRecord::Base
   include Authenticable
@@ -322,6 +323,8 @@ class Application < ActiveRecord::Base
 
   def configuration
     self[:configuration] ||= {}
+    self[:configuration].symbolize_keys! if self[:configuration].respond_to? :symbolize_keys!
+    self[:configuration]
   end
 
   def strategy_description
@@ -382,6 +385,12 @@ class Application < ActiveRecord::Base
     @logger ||= AccountLogger.new self.account.id, self.id
   end
 
+  def bind_queue
+    Queues.bind_application self
+    true
+  end
+
+
   protected
 
   # Ensures tasks for this account are correct
@@ -405,11 +414,6 @@ class Application < ActiveRecord::Base
   def delete_worker_queue
     wq = WorkerQueue.for_application self
     wq.destroy if wq
-    true
-  end
-
-  def bind_queue
-    Queues.bind_application self
     true
   end
 

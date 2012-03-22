@@ -31,12 +31,16 @@ class Channel < ActiveRecord::Base
   validates_numericality_of :throttle, :allow_nil => true, :only_integer => true, :greater_than_or_equal_to => 0
   validates_numericality_of :ao_cost, :greater_than_or_equal_to => 0, :allow_nil => true
   validates_numericality_of :at_cost, :greater_than_or_equal_to => 0, :allow_nil => true
+  validate :check_valid_in_ui, :if => lambda { @must_check_valid_in_ui }
   validates_presence_of :opt_in_keyword, :opt_in_message, :opt_out_keyword, :opt_out_message, :opt_help_keyword, :opt_help_message, :if => lambda { opt_in_enabled.to_b }
 
   scope :enabled, where(:enabled => true)
   scope :disabled, where(:enabled => false)
+  scope :paused, where(:paused => true)
+  scope :unpaused, where(:paused => false)
   scope :outgoing, where(:direction => [Outgoing, Bidirectional])
   scope :incoming, where(:direction => [Incoming, Bidirectional])
+  scope :active, where(:enabled => true, :paused => false)
 
   after_update :reroute_messages, :if => lambda { enabled_changed? && !enabled }
 
@@ -51,7 +55,7 @@ class Channel < ActiveRecord::Base
   end
 
   def self.after_changed(method, options = {})
-    after_update method, options.merge(:if => lambda { changed? && !enabled_changed? && !paused_changed? })
+    after_update method, options.merge(:if => lambda { changed? && !enabled_changed? && !paused_changed? && active? })
   end
 
   def self.after_disabled(method, options = {})
@@ -66,6 +70,10 @@ class Channel < ActiveRecord::Base
       result = x.configuration[:_p] <=> y.configuration[:_p] if result == 0
       result
     end
+  end
+
+  def must_check_valid_in_ui!
+    @must_check_valid_in_ui = true
   end
 
   def incoming?
@@ -189,6 +197,10 @@ class Channel < ActiveRecord::Base
     !!(Rails.cache.read connected_cache_key)
   end
 
+  def active?
+    enabled? && !paused?
+  end
+
   def self.connected(channels)
     keys = channels.select(&:has_connection?).map(&:connected_cache_key)
     hash = Rails.cache.read_multi *keys
@@ -197,6 +209,8 @@ class Channel < ActiveRecord::Base
 
   def configuration
     self[:configuration] ||= {}
+    self[:configuration].symbolize_keys! if self[:configuration].respond_to? :symbolize_keys!
+    self[:configuration]
   end
 
   def restrictions
@@ -212,9 +226,9 @@ class Channel < ActiveRecord::Base
   end
 
   def alert(message)
-    return if account.alert_emails.blank?
-
     logger.error :channel_id => self.id, :message => message
+
+    return if account.alert_emails.blank?
     AlertMailer.error(account, "Error in account #{account.name}, channel #{self.name}", message).deliver
   end
 
