@@ -108,7 +108,6 @@ class SendInterfaceCallbackJob
   private
 
   def apply_custom_format(msg, app, looks_like_xml)
-    escape = app.interface == 'http_get_callback'
     app.interface_custom_format.gsub(%r(\$\{(.*?)\})) do |match|
       # Remove the ${ from the beginning and the } from the end
       match = match[2 .. -2]
@@ -130,7 +129,7 @@ class SendInterfaceCallbackJob
       match ||= ''
       if looks_like_xml
         match = match.to_xs
-      elsif escape
+      else
         match = CGI.escape(match || '')
       end
       match

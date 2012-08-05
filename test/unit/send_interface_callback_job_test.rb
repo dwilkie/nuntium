@@ -353,7 +353,26 @@ class SendInterfaceCallbackJobTest < ActiveSupport::TestCase
     @application.save!
 
     expect_post :url => @application.interface_url,
-      :data => "text=#{@msg.body}&num=#{@msg.from}&num2=#{@msg.from.without_protocol}&country=ar",
+      :data => "text=#{CGI.escape(@msg.body)}&num=#{CGI.escape(@msg.from)}&num2=#{CGI.escape(@msg.from.without_protocol)}&country=ar",
+      :options => {:headers => {:content_type => "application/x-www-form-urlencoded"}},
+      :returns => Net::HTTPSuccess
+
+    job = SendInterfaceCallbackJob.new @application.account_id, @application.id, @msg.id
+    job.perform
+  end
+
+  test "post with custom format and characters that need escaping" do
+    @msg.country = 'ar'
+    @msg.body = "OK i want know you%"
+    @msg.save!
+
+    @application.interface = 'http_post_callback'
+    @application.interface_url = 'http://www.domain.com'
+    @application.interface_custom_format = "text=${body}&num=${from}&num2=${from_without_protocol}&country=${country}"
+    @application.save!
+
+    expect_post :url => @application.interface_url,
+      :data => "text=#{CGI.escape(@msg.body)}&num=#{CGI.escape(@msg.from)}&num2=#{CGI.escape(@msg.from.without_protocol)}&country=ar",
       :options => {:headers => {:content_type => "application/x-www-form-urlencoded"}},
       :returns => Net::HTTPSuccess
 
