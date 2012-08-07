@@ -21,12 +21,9 @@ script_directory=`dirname $0`
 
 nuntium_path=`readlink -f $script_directory/..`
 
-cd $nuntium_path/..
-
 rvmrc_contents=`cat $nuntium_path/.rvmrc`
 ruby_version=`echo $rvmrc_contents | sed -e 's/rvm use //'`
 
-path_to_ruby=`rvm env --path -- $ruby_version`
-full_ruby_version=`basename $path_to_ruby`
+full_ruby_version=`rvm list known_strings | grep ruby-$ruby_version`
 
-/usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile $rvm_path/gems/$full_ruby_version/bin/bundle exec $rvm_path/rubies/$full_ruby_version/bin/ruby $nuntium_path/lib/services/$script $action -- $environment $working_group $instance_id
+/usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile $rvm_path/gems/$full_ruby_version@global/bin/bundle exec $rvm_path/rubies/$full_ruby_version/bin/ruby $nuntium_path/lib/services/$script $action -- $environment $working_group $instance_id
