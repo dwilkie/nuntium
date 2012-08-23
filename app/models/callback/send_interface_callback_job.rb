@@ -44,45 +44,49 @@ class SendInterfaceCallbackJob
       options[:password] = @app.interface_password
     end
 
-    res = RestClient::Resource.new(@app.interface_url, options)
-    res = @app.interface == 'http_get_callback' ? res["?#{data}"].get : res.post(data)
-    netres = res.net_http_res
+    begin
+      res = RestClient::Resource.new(@app.interface_url, options)
+      res = @app.interface == 'http_get_callback' ? res["?#{data}"].get : res.post(data)
+      netres = res.net_http_res
 
-    case netres
-      when Net::HTTPSuccess, Net::HTTPRedirection
-        @msg.state = 'delivered'
-        @msg.save!
+      case netres
+        when Net::HTTPSuccess, Net::HTTPRedirection
+          @msg.state = 'delivered'
+          @msg.save!
 
-        AtMessage.log_delivery([@msg], @account, 'http_post_callback')
+          AtMessage.log_delivery([@msg], @account, 'http_post_callback')
 
-        # If the response includes a body, create an AO message from it
-        if res.body.present?
-          case netres.content_type
-          when 'application/json'
-            hashes = JSON.parse(res.body)
-            hashes = [hashes] unless hashes.is_a? Array
-            hashes.each do |hash|
-              parsed = AoMessage.from_hash hash
-              parsed.token ||= @msg.token
-              @app.route_ao parsed, 'http post callback'
+          # If the response includes a body, create an AO message from it
+          if res.body.present?
+            case netres.content_type
+            when 'application/json'
+              hashes = JSON.parse(res.body)
+              hashes = [hashes] unless hashes.is_a? Array
+              hashes.each do |hash|
+                parsed = AoMessage.from_hash hash
+                parsed.token ||= @msg.token
+                @app.route_ao parsed, 'http post callback'
+              end
+            when 'application/xml'
+              AoMessage.parse_xml(res.body) do |parsed|
+                parsed.token ||= @msg.token
+                @app.route_ao parsed, 'http post callback'
+              end
+            else
+              reply = @msg.new_reply res.body
+              reply.token = @msg.token
+              @app.route_ao reply, 'http post callback'
             end
-          when 'application/xml'
-            AoMessage.parse_xml(res.body) do |parsed|
-              parsed.token ||= @msg.token
-              @app.route_ao parsed, 'http post callback'
-            end
-          else
-            reply = @msg.new_reply res.body
-            reply.token = @msg.token
-            @app.route_ao reply, 'http post callback'
           end
-        end
-      when Net::HTTPUnauthorized
-        alert_msg = "Sending HTTP POST callback received unauthorized: invalid credentials"
-        @app.alert alert_msg
-        raise alert_msg
-      else
-        raise "HTTP POST callback failed #{netres.error!}"
+        when Net::HTTPUnauthorized
+          alert_msg = "Sending HTTP POST callback received unauthorized: invalid credentials"
+          @app.alert alert_msg
+          raise alert_msg
+        else
+          raise "HTTP POST callback failed #{netres.error!}"
+      end
+    rescue RestClient::BadRequest
+      @msg.send_failed @account, @app, "Received HTTP Bad Request (404)"
     end
   end
 
