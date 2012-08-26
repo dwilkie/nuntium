@@ -117,10 +117,10 @@ class SmppGateway < SmppTransceiverDelegate
       Rails.logger.warn alert_msg
       @channel.alert alert_msg
 
-      @channel.enabled = false
-      @channel.save!
-
-      stop
+      # don't disable or stop the channel if the message is rejected
+      #@channel.enabled = false
+      #@channel.save!
+      #stop
     end
   end
 
