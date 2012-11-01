@@ -3,8 +3,8 @@
 development:
   adapter: mysql
   database: nuntium_development
-  username: root
-  password:
+  username: nuntium
+  password: secret
   pool: 5
   timeout: 5000
   reconnect: true
@@ -15,8 +15,8 @@ development:
 test:
   adapter: mysql
   database: nuntium_test
-  username: root
-  password:
+  username: nuntium
+  password: secret
   pool: 5
   timeout: 5000
 
