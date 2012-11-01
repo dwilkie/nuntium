@@ -22,7 +22,7 @@ test:
 
 production:
   adapter: mysql
-  database: nuntium_production
+  database: nuntium
   username: nuntium
   password: secret
   pool: 5
