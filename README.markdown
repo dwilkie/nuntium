@@ -1,12 +1,12 @@
-Nuntium
-=======
+# Nuntium
 
-Nuntium is an open source and free platform -developed by [InSTEDD](http://www.instedd.org)- that allows applications to send and receive all type of messages. Examples of messages are sms, emails and twitter direct messages.
+*Note:* This is a fork of Nuntium ported to git with some additional feature enhancements. Thie official version is hosted on [Bitbucket](https://bitbucket.org/instedd/nuntium).
+
+Nuntium is an open source and free platform developed by [InSTEDD](http://www.instedd.org) that allows applications to send and receive all type of messages. Examples of messages are sms, emails and twitter direct messages.
 
 Read about some of the [new features in the last release](http://ndt.instedd.org/2010/08/make-your-sms-apps-scale.html).
 
-Let's start with an example
----------------------------
+## Let's start with an example
 
 Suppose you have a website that lets users browse and geolocate sms sent by users. Once a message is geolocated you want to send this information to a particular number. Also suppose you have an sms number by which you can receive and send sms. You want your website to focus on the geolocation task and leave the sending and receiving of sms to Nuntium. Here's how you do it:
 
@@ -16,8 +16,7 @@ Suppose you have a website that lets users browse and geolocate sms sent by user
 
 Your website gets messages from Nuntium using the configured Interface (in this case via an HTTP callback containing the messages.) Once a message is geolocated your website sends it to Nuntium (it performs an HTTP POST to Nuntium). And that's it!
 
-What are the benefits of using Nuntium?
----------------------------------------
+## What are the benefits of using Nuntium?
 
 *  Your application deals with a simple protocol (HTTP, might be another one) instead of communicating directly with the cellphone company.
 *  Nuntium will do its best to deliver messages.
@@ -27,11 +26,10 @@ What are the benefits of using Nuntium?
 
 This way you don't have to repeat this logic in every application that needs to send and receive messages.
 
-Installing
-----------
-[Installation docs](https://bitbucket.org/instedd/nuntium/wiki/Installing)
+## Installing
 
-API
----
+[Installation docs](https://github.com/dwilkie/nuntium/wiki/Installing)
 
-[API documentation](https://bitbucket.org/instedd/nuntium/wiki/API)
+## API
+
+[API documentation](https://github.com/dwilkie/nuntium/wiki/API)
