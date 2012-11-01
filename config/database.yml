@@ -24,7 +24,7 @@ production:
   adapter: mysql
   database: nuntium_production
   username: nuntium
-  password: nuntium
+  password: secret
   pool: 5
   timeout: 5000
   reconnect: true
