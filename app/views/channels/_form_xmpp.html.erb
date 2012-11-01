@@ -1,0 +1,33 @@
+<%= form_for_channel channel do |f| -%>
+  <%= render 'edit_header', :f => f, :exclude_address => true %>
+  <h5>XMPP account info</h5>
+  <p>
+  <%= f.label :user -%><br/>
+  <%= f.text_field :user, :autocomplete => :off  -%>
+  </p>
+  <p>
+  <%= f.label :domain -%><br/>
+  <%= f.text_field :domain -%>
+  </p>
+  <p>
+  <%= f.label :password -%><br/>
+  <%= f.password_field :password, :autocomplete => :off  -%>
+  </p>
+  <p>
+  <%= f.label :server -%><br/>
+  <%= f.text_field :server -%>
+  </p>
+  <p>
+  <%= f.label :port -%><br/>
+  <%= f.text_field :port -%>
+  </p>
+  <p>
+  <%= f.label :resource -%><br/>
+  <%= f.text_field :resource -%>
+  </p>
+  <p>
+  <%= f.label :status -%><br/>
+  <%= f.text_field :status -%>
+  </p>
+  <%= render 'edit_footer', :f => f %>
+<%- end -%>

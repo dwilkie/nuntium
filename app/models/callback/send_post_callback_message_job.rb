@@ -1,0 +1,2 @@
+class SendPostCallbackMessageJob < SendInterfaceCallbackJob
+end
