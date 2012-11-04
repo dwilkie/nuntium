@@ -5,3 +5,5 @@ tmp/
 .sass-cache/
 vendor/ruby
 *.swp
+public/stylesheets/packaged
+public/javascripts/packaged
