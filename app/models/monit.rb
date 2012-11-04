@@ -1,6 +1,6 @@
 class Monit
   def self.generate_config!(options = {})
-    services = YAML.load_file(File.join(Rails.root, 'config', 'monit_services.yml'))
+    services = YAML.load_file(File.join(Rails.root, 'config', 'monit_services.yml'))['nuntium_services']
     monit_config = build_config(services).join("\n\n")
     options[:path] ||= "#{Rails.root}/nuntium"
     File.open(options[:path], 'w') { |file| file.write(monit_config) }
