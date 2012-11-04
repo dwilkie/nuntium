@@ -28,7 +28,20 @@ gem 'decent_exposure'
 gem 'jquery-rails', '>= 1.0.12'
 gem 'twilio-ruby'
 
+group :test, :development do
+  gem 'rspec-rails'
+end
+
 group :test do
+  gem 'factory_girl', '~> 2.6'
+  gem 'spork', :git => 'git://github.com/sporkrb/spork.git'
+  gem 'guard-rspec'
+  gem 'guard-spork'
+  gem 'guard-test'
+  gem 'rb-inotify'
+  gem "fakefs", :require => "fakefs/safe"
+  gem 'database_cleaner'
+  gem 'capybara'
   gem 'test-unit', :require => 'test/unit'
   gem "mocha"
   gem "thoughtbot-shoulda", :require => "shoulda"
