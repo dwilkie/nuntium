@@ -1,6 +1,7 @@
 .bundle
 db/*.sqlite3
 config/database.yml
+config/monit_services.yml
 log/*.*
 tmp/
 .sass-cache/
