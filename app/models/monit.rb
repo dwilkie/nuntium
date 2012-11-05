@@ -1,10 +1,28 @@
 class Monit
   def self.generate_config!(options = {})
-    services = YAML.load_file(File.join(Rails.root, 'config', 'monit_services.yml'))['nuntium_services']
-    monit_config = build_config(services).join("\n\n")
-    options[:path] ||= "#{Rails.root}/nuntium"
-    File.open(options[:path], 'w') { |file| file.write(monit_config) }
+    services = monit_config("nuntium_services")
+    monit_script = build_config(services).join("\n\n")
+    options[:path] ||= "#{rails_root}/nuntium"
+    File.open(options[:path], 'w') { |file| file.write(monit_script) }
     options[:path]
+  end
+
+  def self.overloaded_queues
+    queues_config = monit_config("queues")
+    queue_status = `rabbitmqctl list_queues -p #{rabbit_config['vhost']}`
+    monitored_overloaded_queues = {}
+
+    queue_status.split(/\n/).each do |queue|
+      queue_data = queue.split(/\t/)
+      queue_name = queue_data[0]
+      items_in_queue = queue_data[1].to_i
+      queue_config = queues_config[queue_name]
+      if queue_config && queue_config["limit"] && items_in_queue > queue_config["limit"]
+        monitored_overloaded_queues[queue_name] = queue_config.merge("current" => items_in_queue)
+      end
+    end
+
+    monitored_overloaded_queues
   end
 
   private
@@ -49,8 +67,7 @@ class Monit
       script_name = service
     end
 
-    rails_env = Rails.env
-    root_dir = Rails.root
+    root_dir = rails_root
     current_user = ENV['USER']
 
     script_args = "#{rails_env} #{script_options.join(' ')}".strip
@@ -64,5 +81,35 @@ class Monit
       start \"/bin/su - #{current_user} -c '#{root_dir}/script/nuntium_service.sh #{full_script_name}_ctl.rb start #{script_args}'\"
       stop \"/bin/su - #{current_user} -c '#{root_dir}/script/nuntium_service.sh #{full_script_name}_ctl.rb stop #{script_args}'\"
       group nuntium"
+  end
+
+  def self.monit_config(*section_ids)
+    load_config("monit_services.yml", *section_ids)
+  end
+
+  def self.rabbit_config
+    load_config("amqp.yml", rails_env)
+  end
+
+  def self.load_config(name, *section_ids)
+    config = YAML.load_file(config_file(name))
+
+    section_ids.each do |section_id|
+      config = config[section_id]
+    end
+
+    config
+  end
+
+  def self.config_file(name)
+    File.expand_path("#{rails_root}/config/#{name}", __FILE__)
+  end
+
+  def self.rails_root
+    File.expand_path("../../../", __FILE__)
+  end
+
+  def self.rails_env
+    defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "development")
   end
 end
