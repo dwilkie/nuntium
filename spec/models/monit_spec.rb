@@ -146,10 +146,21 @@ describe Monit do
       queue_report(queues_for_report)
     end
 
-    def stub_list_queues(result)
+    def rabbitmq_list_queues_command(environment = nil)
+      environment ||= Rails.env
+      "rabbitmqctl list_queues -p #{CONFIG_OPTIONS[:rabbit][:config][environment]['vhost']}"
+    end
+
+    def stub_list_queues(result, environment = nil)
       subject.class.stub(:`).with(
-        "rabbitmqctl list_queues -p #{CONFIG_OPTIONS[:rabbit][:config][Rails.env]['vhost']}"
+        rabbitmq_list_queues_command(environment)
       ).and_return(result)
+    end
+
+    def assert_list_queues(environment = nil)
+      subject.class.should_receive(:`).with(
+        rabbitmq_list_queues_command(environment)
+      )
     end
 
     before do
@@ -176,6 +187,17 @@ describe Monit do
         result = subject.class.overloaded_queues
         result["ao_queue.1.smpp.1"]["current"].should be_present
         result["ao_queue.1.smpp.2"]["current"].should be_present
+      end
+    end
+
+    context "passing 'production'" do
+      before do
+        stub_list_queues(queue_report, "production")
+      end
+
+      it "should try to list the queues from the production vhost" do
+        assert_list_queues("production")
+        subject.class.overloaded_queues("production")
       end
     end
   end
