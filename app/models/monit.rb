@@ -1,3 +1,5 @@
+require 'yaml'
+
 class Monit
   def self.generate_config!(options = {})
     services = monit_config("nuntium_services")
@@ -7,7 +9,8 @@ class Monit
     options[:path]
   end
 
-  def self.overloaded_queues
+  def self.overloaded_queues(environment = nil)
+    @rails_env = environment
     queues_config = monit_config("queues")
     queue_status = `rabbitmqctl list_queues -p #{rabbit_config['vhost']}`
     monitored_overloaded_queues = {}
@@ -110,6 +113,6 @@ class Monit
   end
 
   def self.rails_env
-    defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "development")
+    @rails_env ||= (defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "development"))
   end
 end
