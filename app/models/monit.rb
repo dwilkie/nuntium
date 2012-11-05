@@ -1,3 +1,5 @@
+require 'yaml'
+
 class Monit
   def self.generate_config!(options = {})
     services = monit_config("nuntium_services")
