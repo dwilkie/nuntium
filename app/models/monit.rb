@@ -2,7 +2,7 @@ require 'yaml'
 
 class Monit
   def self.generate_config!(options = {})
-    services = monit_config("nuntium_services")
+    services = monit_config(:services, :names)
     monit_script = build_config(services).join("\n\n")
     options[:path] ||= "#{rails_root}/nuntium"
     File.open(options[:path], 'w') { |file| file.write(monit_script) }
@@ -10,8 +10,8 @@ class Monit
   end
 
   def self.overloaded_queues(environment = nil)
-    @rails_env = environment
-    queues_config = monit_config("queues")
+    set_rails_env(environment)
+    queues_config = monit_config(:queues, :names)
     queue_status = `rabbitmqctl list_queues -p '#{rabbit_config['vhost']}'`
     monitored_overloaded_queues = {}
 
@@ -28,11 +28,19 @@ class Monit
     monitored_overloaded_queues
   end
 
+  def self.notify_queues_overloaded!(environment = nil)
+    set_rails_env(environment)
+    queues = overloaded_queues(environment)
+    if queues.any?
+      queue_summary = queues.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
+      notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
+    end
+  end
+
   private
 
   def self.build_config(services)
     configs = []
-
     services.each do |service, script_config|
       if service.is_a?(Hash)
         configs << working_group_configs(service)
@@ -86,22 +94,49 @@ class Monit
       group nuntium"
   end
 
+  def self.notify_via_sms!(section_id, message)
+    application_id = notify_config(section_id, :application_id)
+    recipients = notify_config(section_id, :channels, :sms, :to)
+    from = notify_config(section_id, :channels, :sms, :from)
+    return unless (application_id && recipients)
+    application = Application.find(application_id)
+    recipients.each do |recipient|
+      sms = application.ao_messages.build(
+        :from => "sms://#{from}", :to => "sms://#{recipient}", :body => message
+      )
+      application.route_ao sms, "user"
+    end
+  end
+
+  def self.notify_channels!(section_id, message)
+    notify_via_sms!(section_id, message)
+  end
+
+  def self.notify_config(section_id, *fields)
+    load_config_section(monit_config(section_id.to_s)["notify"], *fields) || load_config_section(monit_config["notify"], *fields)
+  end
+
   def self.monit_config(*section_ids)
-    load_config("monit_services.yml", *section_ids)
+    @monit_config ||= load_config_file("monit.yml")
+    load_config_section(@monit_config, *section_ids)
   end
 
   def self.rabbit_config
-    load_config("amqp.yml", rails_env)
+    @rabbit_config ||= load_config_file("amqp.yml")
+    load_config_section(@rabbit_config, rails_env)
   end
 
-  def self.load_config(name, *section_ids)
-    config = YAML.load_file(config_file(name))
-
+  def self.load_config_section(config, *section_ids)
     section_ids.each do |section_id|
-      config = config[section_id]
+      config ||= {}
+      config = config[section_id.to_s]
     end
 
     config
+  end
+
+  def load_config_file(name)
+    YAML.load_file(config_file(name))
   end
 
   def self.config_file(name)
@@ -114,5 +149,9 @@ class Monit
 
   def self.rails_env
     @rails_env ||= (defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "production"))
+  end
+
+  def self.set_rails_env(environment)
+    @rails_env = environment
   end
 end

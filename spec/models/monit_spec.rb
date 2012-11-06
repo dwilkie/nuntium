@@ -12,11 +12,12 @@ describe Monit do
 
   CONFIG_OPTIONS = {
     :monit => {
-      :filename => "monit_services.yml",
-      :section_ids => {
-        :nuntium_services => "nuntium_services",
-        :queues => "queues"
-      }
+      :filename => "monit.yml",
+      :section_ids => [
+        :notify,
+        :services,
+        :queues
+      ]
     },
     :rabbit => {:filename => "amqp.yml"}
   }
@@ -29,6 +30,8 @@ describe Monit do
 
   CONFIG_OPTIONS.freeze
 
+  include FakeFS::SpecHelpers
+
   def generate_config_file!(type, options = {})
     config_options = CONFIG_OPTIONS[type]
     options[:config] ||= config_options[:config]
@@ -39,11 +42,20 @@ describe Monit do
     end
   end
 
-  def config_section(type, section_id)
-    CONFIG_OPTIONS[type][:config][CONFIG_OPTIONS[type][:section_ids][section_id]]
+  def config_section(type, *section_ids)
+    config = CONFIG_OPTIONS[type][:config]
+
+    section_ids.each do |section_id|
+      config ||= {}
+      config = config[section_id.to_s]
+    end
+
+    config
   end
 
-  include FakeFS::SpecHelpers
+  def notify_config(section_id, *fields)
+    config_section(:monit, section_id, :notify, *fields) || config_section(:monit, :notify, *fields)
+  end
 
   describe ".generate_config!" do
     let(:default_output_path) { "#{Rails.root}/nuntium" }
@@ -54,7 +66,7 @@ describe Monit do
     end
 
     def assert_monit_script(output, options = {})
-      options[:services] ||= config_section(:monit, :nuntium_services)
+      options[:services] ||= config_section(:monit, :services, :names)
       options[:services].each do |service|
         if service.is_a?(Hash)
           service_name = service.keys.first
@@ -112,7 +124,7 @@ describe Monit do
     end
   end
 
-  describe ".overloaded_queues" do
+  context "queues" do
 
     let(:default_queues) {{
       "ao_queue.1.twilio.6" => 68,
@@ -128,6 +140,8 @@ describe Monit do
       "ao_queue.1.smpp.2" => 0
     }}
 
+    let(:overloaded_queues) { ["ao_queue.1.smpp.1", "ao_queue.1.smpp.2"] }
+
     def queue_report(custom_queues = {})
       report = "Listing queues ...\n"
       default_queues.merge(custom_queues).each do |queue_name, num_items|
@@ -138,8 +152,9 @@ describe Monit do
 
     def overloaded_queue_report(*queues_to_overload)
       options = queues_to_overload.extract_options!
-      options[:queues_config] ||= config_section(:monit, :queues)
+      options[:queues_config] ||= config_section(:monit, :queues, :names)
       queues_for_report = {}
+      queues_to_overload = overloaded_queues if queues_to_overload.empty?
       queues_to_overload.each do |queue_name|
         queues_for_report[queue_name] = options[:queues_config][queue_name]["limit"].to_i + 1
       end
@@ -168,36 +183,77 @@ describe Monit do
       generate_config_file!(:monit)
     end
 
-    context "given the monitored queues are not overloaded" do
-      before do
-        stub_list_queues(queue_report)
+    describe ".overloaded_queues" do
+      context "given the monitored queues are not overloaded" do
+        before do
+          stub_list_queues(queue_report)
+        end
+
+        it "should return an empty hash" do
+          subject.class.overloaded_queues.should be_empty
+        end
       end
 
-      it "should return an empty hash" do
-        subject.class.overloaded_queues.should be_empty
+      context "given two of the monitored queues are overloaded" do
+        before do
+          stub_list_queues(overloaded_queue_report)
+        end
+
+        it "should return the monit queue configuration and the actual number of items in the queue" do
+          result = subject.class.overloaded_queues
+          overloaded_queues.each do |overloaded_queue|
+            result[overloaded_queue]["current"].should be_present
+          end
+        end
+      end
+
+      context "passing 'development'" do
+        before do
+          stub_list_queues(queue_report, "development")
+        end
+
+        it "should try to list the queues from the development vhost" do
+          assert_list_queues("development")
+          subject.class.overloaded_queues("development")
+        end
       end
     end
 
-    context "given two of the monitored queues are overloaded" do
-      before do
-        stub_list_queues(overloaded_queue_report("ao_queue.1.smpp.1", "ao_queue.1.smpp.2"))
+    describe ".notify_queues_overloaded!" do
+      context "the queues are overloaded" do
+        let(:application_id) { notify_config(:application_id) }
+
+        let(:application) do
+          FakeFS.deactivate!
+          app = create(:application, :id => application_id)
+          FakeFS.activate!
+          app
+        end
+
+        before do
+          Application.stub(:find).and_return(application)
+          stub_list_queues(overloaded_queue_report)
+        end
+
+        it "should try to send an sms to the relevant notify person" do
+          application.should_receive(:route_ao).once.with do |sms, interface|
+            sms.from.should == "sms://#{notify_config(:queues, :channels, :sms, :from)}"
+            sms.to.should == "sms://#{notify_config(:queues, :channels, :sms, :to).first}"
+            sms.body.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
+            interface.should == "user"
+          end
+          subject.class.notify_queues_overloaded!
+        end
       end
 
-      it "should return the monit queue configuration and the actual number of items in the queue" do
-        result = subject.class.overloaded_queues
-        result["ao_queue.1.smpp.1"]["current"].should be_present
-        result["ao_queue.1.smpp.2"]["current"].should be_present
-      end
-    end
+      context "the queues are not overloaded" do
+        before do
+          stub_list_queues(queue_report)
+        end
 
-    context "passing 'development'" do
-      before do
-        stub_list_queues(queue_report, "development")
-      end
-
-      it "should try to list the queues from the development vhost" do
-        assert_list_queues("development")
-        subject.class.overloaded_queues("development")
+        it "should not notify" do
+          subject.class.notify_queues_overloaded!.should be_false
+        end
       end
     end
   end
