@@ -190,14 +190,14 @@ describe Monit do
       end
     end
 
-    context "passing 'production'" do
+    context "passing 'development'" do
       before do
-        stub_list_queues(queue_report, "production")
+        stub_list_queues(queue_report, "development")
       end
 
-      it "should try to list the queues from the production vhost" do
-        assert_list_queues("production")
-        subject.class.overloaded_queues("production")
+      it "should try to list the queues from the development vhost" do
+        assert_list_queues("development")
+        subject.class.overloaded_queues("development")
       end
     end
   end
