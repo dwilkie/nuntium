@@ -12,7 +12,7 @@ class Monit
   def self.overloaded_queues(environment = nil)
     @rails_env = environment
     queues_config = monit_config("queues")
-    queue_status = `rabbitmqctl list_queues -p #{rabbit_config['vhost']}`
+    queue_status = `rabbitmqctl list_queues -p '#{rabbit_config['vhost']}'`
     monitored_overloaded_queues = {}
 
     queue_status.split(/\n/).each do |queue|

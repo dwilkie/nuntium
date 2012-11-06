@@ -148,7 +148,7 @@ describe Monit do
 
     def rabbitmq_list_queues_command(environment = nil)
       environment ||= Rails.env
-      "rabbitmqctl list_queues -p #{CONFIG_OPTIONS[:rabbit][:config][environment]['vhost']}"
+      "rabbitmqctl list_queues -p '#{CONFIG_OPTIONS[:rabbit][:config][environment]['vhost']}'"
     end
 
     def stub_list_queues(result, environment = nil)
