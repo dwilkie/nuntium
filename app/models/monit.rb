@@ -113,6 +113,6 @@ class Monit
   end
 
   def self.rails_env
-    @rails_env ||= (defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "development"))
+    @rails_env ||= (defined?(Rails) ? Rails.env : (ENV["RAILS_ENV"] || "production"))
   end
 end
