@@ -169,20 +169,21 @@ describe Monit do
       queue_report(queues_for_report)
     end
 
-    def rabbitmq_list_queues_command(environment = nil)
-      environment ||= Rails.env
-      "rabbitmqctl list_queues -p '#{config_options[:rabbit][:config][environment]['vhost']}'"
+    def rabbitmq_list_queues_command(options = {})
+      options[:environment] ||= Rails.env
+      options[:rabbitmqctl_path] ||= "/usr/sbin/rabbitmqctl"
+      "#{options[:rabbitmqctl_path]} list_queues -p '#{config_options[:rabbit][:config][options[:environment]]['vhost']}'"
     end
 
-    def stub_list_queues(result, environment = nil)
+    def stub_list_queues(result, options = {})
       subject.class.stub(:`).with(
-        rabbitmq_list_queues_command(environment)
+        rabbitmq_list_queues_command(options)
       ).and_return(result)
     end
 
-    def assert_list_queues(environment = nil)
+    def assert_list_queues(options = {})
       subject.class.should_receive(:`).with(
-        rabbitmq_list_queues_command(environment)
+        rabbitmq_list_queues_command(options)
       )
     end
 
@@ -215,14 +216,25 @@ describe Monit do
         end
       end
 
-      context "passing 'development'" do
+      context "passing :environment => 'development'" do
         before do
-          stub_list_queues(queue_report, "development")
+          stub_list_queues(queue_report, :environment => "development")
         end
 
         it "should try to list the queues from the development vhost" do
-          assert_list_queues("development")
-          subject.class.overloaded_queues("development")
+          assert_list_queues(:environment => "development")
+          subject.class.overloaded_queues(:environment => "development")
+        end
+      end
+
+      context "passing :rabbitmqctl_path => '/path/to/rabbitmqctl'" do
+        before do
+          stub_list_queues(queue_report, :rabbitmqctl_path => "/path/to/rabbitmqctl")
+        end
+
+        it "should try to list the queues using the custom path to rabbitmqctl" do
+          assert_list_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
+          subject.class.overloaded_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
         end
       end
     end

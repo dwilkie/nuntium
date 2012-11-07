@@ -9,10 +9,11 @@ class Monit
     options[:path]
   end
 
-  def self.overloaded_queues(environment = nil)
-    set_rails_env(environment)
+  def self.overloaded_queues(options = {})
+    set_rails_env(options[:environment])
+    options[:rabbitmqctl_path] ||= "/usr/sbin/rabbitmqctl"
     queues_config = monit_config(:queues, :names)
-    queue_status = `rabbitmqctl list_queues -p '#{rabbit_config['vhost']}'`
+    queue_status = `#{options[:rabbitmqctl_path]} list_queues -p '#{rabbit_config['vhost']}'`
     monitored_overloaded_queues = {}
 
     queue_status.split(/\n/).each do |queue|
@@ -28,9 +29,9 @@ class Monit
     monitored_overloaded_queues
   end
 
-  def self.notify_queues_overloaded!(environment = nil)
-    set_rails_env(environment)
-    queues = overloaded_queues(environment)
+  def self.notify_queues_overloaded!(options = {})
+    set_rails_env(options[:environment])
+    queues = overloaded_queues(options)
     if queues.any?
       queue_summary = queues.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
       notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
