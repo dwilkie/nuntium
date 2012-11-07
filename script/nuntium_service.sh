@@ -27,10 +27,10 @@ nuntium_path=`readlink -f $script_directory/..`
 rvmrc_contents=`cat $nuntium_path/.rvmrc`
 ruby_version=`echo $rvmrc_contents | sed -e 's/rvm use //'`
 
-full_ruby_version=`rvm list known_strings | grep ruby-$ruby_version`
+#full_ruby_version=`rvm list known_strings | grep ruby-$ruby_version`
 
 if [[ "$script" == "rake" ]] ; then
-  /usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile $rvm_path/gems/$full_ruby_version@global/bin/bundle exec $*
+  /usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile rvm-shell $ruby_version -c "bundle exec $* -f $nuntium_path/Rakefile"
 else
-  /usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile $rvm_path/gems/$full_ruby_version@global/bin/bundle exec $rvm_path/rubies/$full_ruby_version/bin/ruby $nuntium_path/lib/services/$script $action -- $environment $working_group $instance_id
+  /usr/bin/env BUNDLE_GEMFILE=$nuntium_path/Gemfile rvm-shell $ruby_version -c "bundle exec ruby $nuntium_path/lib/services/$script $action -- $environment $working_group $instance_id"
 fi
