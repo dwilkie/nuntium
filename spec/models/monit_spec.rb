@@ -1,16 +1,10 @@
 require 'spec_helper'
 
-def config_file_path(name)
-  "#{Rails.root}/config/#{name}"
-end
-
-def load_config_file(name)
-  YAML.load_file(config_file_path(name))
-end
-
 describe Monit do
 
-  CONFIG_OPTIONS = {
+  include FakeFS::SpecHelpers
+
+  let(:config_options) {{
     :monit => {
       :filename => "monit.yml",
       :section_ids => [
@@ -20,22 +14,36 @@ describe Monit do
       ]
     },
     :rabbit => {:filename => "amqp.yml"}
-  }
+  }}
 
-  CONFIG_OPTIONS[:monit][:path] = config_file_path(CONFIG_OPTIONS[:monit][:filename])
-  CONFIG_OPTIONS[:monit][:config] = load_config_file(CONFIG_OPTIONS[:monit][:filename])
+  def without_fakefs(&block)
+    FakeFS.deactivate!
+    result = yield(block)
+    FakeFS.activate!
+    result
+  end
 
-  CONFIG_OPTIONS[:rabbit][:path] = config_file_path(CONFIG_OPTIONS[:rabbit][:filename])
-  CONFIG_OPTIONS[:rabbit][:config] = load_config_file(CONFIG_OPTIONS[:rabbit][:filename])
+  def config_file_path(name)
+    "#{Rails.root}/config/#{name}"
+  end
 
-  CONFIG_OPTIONS.freeze
+  def load_config_file(name)
+    YAML.load_file(config_file_path(name))
+  end
 
-  include FakeFS::SpecHelpers
+  before do
+    without_fakefs do
+      config_options[:monit][:path] = config_file_path(config_options[:monit][:filename])
+      config_options[:monit][:config] = load_config_file(config_options[:monit][:filename])
+      config_options[:rabbit][:path] = config_file_path(config_options[:rabbit][:filename])
+      config_options[:rabbit][:config] = load_config_file(config_options[:rabbit][:filename])
+    end
+  end
 
   def generate_config_file!(type, options = {})
-    config_options = CONFIG_OPTIONS[type]
-    options[:config] ||= config_options[:config]
-    config_path = config_options[:path]
+    config_file = config_options[type]
+    options[:config] ||= config_file[:config]
+    config_path = config_file[:path]
     FileUtils.mkdir_p(File.dirname(config_path))
     File.open(config_path, 'w') do |file|
       file.write(options[:config].to_yaml)
@@ -43,7 +51,7 @@ describe Monit do
   end
 
   def config_section(type, *section_ids)
-    config = CONFIG_OPTIONS[type][:config]
+    config = config_options[type][:config]
 
     section_ids.each do |section_id|
       config ||= {}
@@ -163,7 +171,7 @@ describe Monit do
 
     def rabbitmq_list_queues_command(environment = nil)
       environment ||= Rails.env
-      "rabbitmqctl list_queues -p '#{CONFIG_OPTIONS[:rabbit][:config][environment]['vhost']}'"
+      "rabbitmqctl list_queues -p '#{config_options[:rabbit][:config][environment]['vhost']}'"
     end
 
     def stub_list_queues(result, environment = nil)
@@ -224,10 +232,9 @@ describe Monit do
         let(:application_id) { notify_config(:application_id) }
 
         let(:application) do
-          FakeFS.deactivate!
-          app = create(:application, :id => application_id)
-          FakeFS.activate!
-          app
+          without_fakefs do
+            create(:application, :id => application_id)
+          end
         end
 
         before do

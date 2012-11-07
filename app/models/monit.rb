@@ -135,7 +135,7 @@ class Monit
     config
   end
 
-  def load_config_file(name)
+  def self.load_config_file(name)
     YAML.load_file(config_file(name))
   end
 
