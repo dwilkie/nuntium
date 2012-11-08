@@ -13,7 +13,24 @@ describe Monit do
         :queues
       ]
     },
-    :rabbit => {:filename => "amqp.yml"}
+    :rabbit => {:filename => "amqp.yml"},
+    :overloaded_queues => {
+      :filename => ".overloaded_queues.yml",
+      :config => {
+        "names" => {
+          "queue_1" => {
+            "human_name" => "human_queue_name_1",
+            "limit" => "20",
+            "current" => "25"
+          },
+          "queue_2" => {
+            "human_name" => "human_queue_name_2",
+            "limit" => "30",
+            "current" => "34"
+          }
+        }
+      }
+    }
   }}
 
   def without_fakefs(&block)
@@ -23,21 +40,23 @@ describe Monit do
     result
   end
 
-  def config_file_path(name)
-    "#{Rails.root}/config/#{name}"
+  def yml_file_path(name, type = :config)
+    "#{Rails.root}/#{type}/#{name}"
   end
 
-  def load_config_file(name)
-    YAML.load_file(config_file_path(name))
+  def load_yml_file(name, type = :config)
+    YAML.load_file(yml_file_path(name, type))
   end
 
   before do
     without_fakefs do
-      config_options[:monit][:path] = config_file_path(config_options[:monit][:filename])
-      config_options[:monit][:config] = load_config_file(config_options[:monit][:filename])
-      config_options[:rabbit][:path] = config_file_path(config_options[:rabbit][:filename])
-      config_options[:rabbit][:config] = load_config_file(config_options[:rabbit][:filename])
+      config_options[:monit][:path] = yml_file_path(config_options[:monit][:filename])
+      config_options[:monit][:config] = load_yml_file(config_options[:monit][:filename])
+      config_options[:rabbit][:path] = yml_file_path(config_options[:rabbit][:filename])
+      config_options[:rabbit][:config] = load_yml_file(config_options[:rabbit][:filename])
+      config_options[:overloaded_queues][:path] = yml_file_path(config_options[:overloaded_queues][:filename], :tmp)
     end
+    generate_config_file!(:monit)
   end
 
   def generate_config_file!(type, options = {})
@@ -59,10 +78,6 @@ describe Monit do
     end
 
     config
-  end
-
-  def notify_config(section_id, *fields)
-    config_section(:monit, section_id, :notify, *fields) || config_section(:monit, :notify, *fields)
   end
 
   describe ".generate_config!" do
@@ -112,10 +127,6 @@ describe Monit do
     end
 
     context "given there's a nuntium monit services config file 'config/monit_services.yml'" do
-      before do
-        generate_config_file!(:monit)
-      end
-
       context "passing no options" do
         it "create a monit script under the Rails root directory" do
           subject.class.generate_config!.should == default_output_path
@@ -132,7 +143,10 @@ describe Monit do
     end
   end
 
-  context "queues" do
+  describe ".overloaded_queues" do
+    before do
+      generate_config_file!(:rabbit)
+    end
 
     let(:default_queues) {{
       "ao_queue.1.twilio.6" => 68,
@@ -187,92 +201,178 @@ describe Monit do
       )
     end
 
-    before do
-      generate_config_file!(:rabbit)
-      generate_config_file!(:monit)
-    end
+    context "given the monitored queues are not overloaded" do
+      before do
+        stub_list_queues(queue_report)
+      end
 
-    describe ".overloaded_queues" do
-      context "given the monitored queues are not overloaded" do
-        before do
-          stub_list_queues(queue_report)
-        end
+      it "should return an empty hash" do
+        subject.class.overloaded_queues.should be_empty
+      end
 
-        it "should return an empty hash" do
-          subject.class.overloaded_queues.should be_empty
+      context "and an overloaded queues file does not exist" do
+        it "should not try to remove the non-existant file" do
+          File.exists?(config_options[:overloaded_queues][:path]).should be_false
         end
       end
 
-      context "given two of the monitored queues are overloaded" do
+      context "and an overloaded queues file exists" do
         before do
-          stub_list_queues(overloaded_queue_report)
+          generate_config_file!(:overloaded_queues)
         end
 
-        it "should return the monit queue configuration and the actual number of items in the queue" do
-          result = subject.class.overloaded_queues
-          overloaded_queues.each do |overloaded_queue|
-            result[overloaded_queue]["current"].should be_present
-          end
-        end
-      end
-
-      context "passing :environment => 'development'" do
-        before do
-          stub_list_queues(queue_report, :environment => "development")
-        end
-
-        it "should try to list the queues from the development vhost" do
-          assert_list_queues(:environment => "development")
-          subject.class.overloaded_queues(:environment => "development")
-        end
-      end
-
-      context "passing :rabbitmqctl_path => '/path/to/rabbitmqctl'" do
-        before do
-          stub_list_queues(queue_report, :rabbitmqctl_path => "/path/to/rabbitmqctl")
-        end
-
-        it "should try to list the queues using the custom path to rabbitmqctl" do
-          assert_list_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
-          subject.class.overloaded_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
+        it "should delete the overloaded queues file" do
+          subject.class.overloaded_queues
+          File.exists?(config_options[:overloaded_queues][:path]).should be_false
         end
       end
     end
 
-    describe ".notify_queues_overloaded!" do
-      context "the queues are overloaded" do
-        let(:application_id) { notify_config(:application_id) }
+    context "given two of the monitored queues are overloaded" do
+      before do
+        stub_list_queues(overloaded_queue_report)
+      end
 
-        let(:application) do
-          without_fakefs do
-            create(:application, :id => application_id)
-          end
-        end
-
-        before do
-          Application.stub(:find).and_return(application)
-          stub_list_queues(overloaded_queue_report)
-        end
-
-        it "should try to send an sms to the relevant notify person" do
-          application.should_receive(:route_ao).once.with do |sms, interface|
-            sms.from.should == "sms://#{notify_config(:queues, :channels, :sms, :from)}"
-            sms.to.should == "sms://#{notify_config(:queues, :channels, :sms, :to).first}"
-            sms.body.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
-            interface.should == "user"
-          end
-          subject.class.notify_queues_overloaded!
+      it "should return the monit queue configuration and the actual number of items in the queue" do
+        result = subject.class.overloaded_queues
+        overloaded_queues.each do |overloaded_queue|
+          result[overloaded_queue]["current"].should be_present
         end
       end
 
-      context "the queues are not overloaded" do
+      it "should write the overloaded queues to file" do
+        result = subject.class.overloaded_queues
+        output = load_yml_file(config_options[:overloaded_queues][:filename], :tmp)
+        output["names"].should == result
+      end
+
+      context "passing :write_output => false" do
+        it "should not write the overloaded queues to file" do
+          subject.class.overloaded_queues(:write_output => false)
+          File.exists?(config_options[:overloaded_queues][:path]).should be_false
+        end
+      end
+    end
+
+    context "passing :environment => 'development'" do
+      before do
+        stub_list_queues(queue_report, :environment => "development")
+      end
+
+      it "should try to list the queues from the development vhost" do
+        assert_list_queues(:environment => "development")
+        subject.class.overloaded_queues(:environment => "development")
+      end
+    end
+
+    context "passing :rabbitmqctl_path => '/path/to/rabbitmqctl'" do
+      before do
+        stub_list_queues(queue_report, :rabbitmqctl_path => "/path/to/rabbitmqctl")
+      end
+
+      it "should try to list the queues using the custom path to rabbitmqctl" do
+        assert_list_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
+        subject.class.overloaded_queues(:rabbitmqctl_path => "/path/to/rabbitmqctl")
+      end
+    end
+  end
+
+  describe ".notify_queues_overloaded?" do
+    context "given there is no overloaded queues file" do
+      it "should return false" do
+        subject.class.should_not be_notify_queues_overloaded
+      end
+    end
+
+    context "given there is an overloaded queues file with no notified_at entry" do
+      context "with no 'notified_at' entry" do
         before do
-          stub_list_queues(queue_report)
+          generate_config_file!(:overloaded_queues)
         end
 
-        it "should not notify" do
-          subject.class.notify_queues_overloaded!.should be_false
+        it "should return true" do
+          subject.class.should be_notify_queues_overloaded
         end
+      end
+
+      context "with a 'notified_at' entry" do
+        let(:overloaded_queues_config) { config_options[:overloaded_queues][:config] }
+
+        def set_notified_at(mins_ago)
+          config_options[:overloaded_queues][:config]["notified_at"] = Time.now - mins_ago * 60
+        end
+
+        context "that was more than 30 mins ago" do
+          before do
+            set_notified_at(30)
+            generate_config_file!(:overloaded_queues, :config => overloaded_queues_config)
+          end
+
+          it "should return true" do
+            subject.class.should be_notify_queues_overloaded
+          end
+        end
+
+        context "that was less than 20 mins ago" do
+          before do
+            set_notified_at(20)
+            generate_config_file!(:overloaded_queues, :config => overloaded_queues_config)
+          end
+
+          it "should return false" do
+            subject.class.should_not be_notify_queues_overloaded
+          end
+
+          context "passing :notify_every => 10" do
+            it "should return true" do
+              subject.class.should be_notify_queues_overloaded(:notify_every => 10)
+            end
+          end
+        end
+      end
+    end
+  end
+
+  describe ".notify_queues_overloaded!" do
+
+    def notify_config(section_id, *fields)
+      config_section(:monit, section_id, :notify, *fields) || config_section(:monit, :notify, *fields)
+    end
+
+    context "the queues are overloaded" do
+      let(:application_id) { notify_config(:application_id) }
+
+      let(:application) do
+        without_fakefs do
+          create(:application, :id => application_id)
+        end
+      end
+
+      before do
+        generate_config_file!(:overloaded_queues)
+        Application.stub(:find).and_return(application)
+      end
+
+      it "should try to send an sms to the relevant notify person" do
+        application.should_receive(:route_ao).once.with do |sms, interface|
+          sms.from.should == "sms://#{notify_config(:queues, :channels, :sms, :from)}"
+          sms.to.should == "sms://#{notify_config(:queues, :channels, :sms, :to).first}"
+          sms.body.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
+          interface.should == "http"
+        end
+        subject.class.notify_queues_overloaded!
+      end
+
+      it "should write an 'updated_at' field to the queues file" do
+        subject.class.notify_queues_overloaded!
+        output = load_yml_file(config_options[:overloaded_queues][:filename], :tmp)
+        output["notified_at"].should be_present
+      end
+    end
+
+    context "the queues are not overloaded" do
+      it "should not notify" do
+        subject.class.notify_queues_overloaded!.should be_false
       end
     end
   end

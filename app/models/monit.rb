@@ -1,20 +1,33 @@
 require 'yaml'
 
 class Monit
+
+  FILES = {
+    :config => {
+      :monit => "monit.yml",
+      :rabbit => "amqp.yml"
+    },
+    :tmp => {
+      :overloaded_queues => ".overloaded_queues.yml"
+    }
+  }.freeze
+
   def self.generate_config!(options = {})
     services = monit_config(:services, :names)
     monit_script = build_config(services).join("\n\n")
     options[:path] ||= "#{rails_root}/nuntium"
-    File.open(options[:path], 'w') { |file| file.write(monit_script) }
+    write_file(options[:path], monit_script)
     options[:path]
   end
 
   def self.overloaded_queues(options = {})
     set_rails_env(options[:environment])
     options[:rabbitmqctl_path] ||= "/usr/sbin/rabbitmqctl"
+    options[:write_output] = true unless options[:write_output] == false
+
     queues_config = monit_config(:queues, :names)
     queue_status = `#{options[:rabbitmqctl_path]} list_queues -p '#{rabbit_config['vhost']}'`
-    monitored_overloaded_queues = {}
+    monitored_overloaded_queue_names = {}
 
     queue_status.split(/\n/).each do |queue|
       queue_data = queue.split(/\t/)
@@ -22,19 +35,35 @@ class Monit
       items_in_queue = queue_data[1].to_i
       queue_config = queues_config[queue_name]
       if queue_config && queue_config["limit"] && items_in_queue > queue_config["limit"]
-        monitored_overloaded_queues[queue_name] = queue_config.merge("current" => items_in_queue)
+        monitored_overloaded_queue_names[queue_name] = queue_config.merge("current" => items_in_queue)
       end
     end
 
-    monitored_overloaded_queues
+    if options[:write_output]
+      if monitored_overloaded_queue_names.any?
+        update_overloaded_queues_file("names" => monitored_overloaded_queue_names)
+      else
+        clear_overloaded_queues_file
+      end
+    end
+
+    monitored_overloaded_queue_names
+  end
+
+  def self.notify_queues_overloaded?(options = {})
+    options[:notify_every] ||= (30 * 60)
+    last_notified_at = overloaded_queues_file["notified_at"]
+    overloaded_queues_file.any? && (last_notified_at.nil? || last_notified_at < Time.now - options[:notify_every])
   end
 
   def self.notify_queues_overloaded!(options = {})
     set_rails_env(options[:environment])
-    queues = overloaded_queues(options)
-    if queues.any?
-      queue_summary = queues.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
+    overloaded_queues = overloaded_queues_file
+    overloaded_queue_names = overloaded_queues["names"] || {}
+    if overloaded_queue_names.any?
+      queue_summary = overloaded_queue_names.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
       notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
+      update_overloaded_queues_file({"notified_at" => Time.now}, overloaded_queues)
     end
   end
 
@@ -105,7 +134,7 @@ class Monit
       sms = application.ao_messages.build(
         :from => "sms://#{from}", :to => "sms://#{recipient}", :body => message
       )
-      application.route_ao sms, "user"
+      application.route_ao sms, "http"
     end
   end
 
@@ -118,12 +147,28 @@ class Monit
   end
 
   def self.monit_config(*section_ids)
-    @monit_config ||= load_config_file("monit.yml")
+    @monit_config ||= load_yml_file(:monit)
     load_config_section(@monit_config, *section_ids)
   end
 
+  def self.overloaded_queues_file
+    load_yml_file(:overloaded_queues, :tmp) || {}
+  end
+
+  def self.update_overloaded_queues_file(new_content, old_content = nil)
+    old_content ||= overloaded_queues_file
+    write_file(
+      yml_file(:overloaded_queues, :tmp), old_content.merge(new_content).to_yaml
+    )
+  end
+
+  def self.clear_overloaded_queues_file
+    path = yml_file(:overloaded_queues, :tmp)
+    FileUtils.rm(path) if File.exists?(path)
+  end
+
   def self.rabbit_config
-    @rabbit_config ||= load_config_file("amqp.yml")
+    @rabbit_config ||= load_yml_file(:rabbit)
     load_config_section(@rabbit_config, rails_env)
   end
 
@@ -136,12 +181,13 @@ class Monit
     config
   end
 
-  def self.load_config_file(name)
-    YAML.load_file(config_file(name))
+  def self.load_yml_file(name, type = :config)
+    path = yml_file(name, type)
+    YAML.load_file(path) if File.exists?(path)
   end
 
-  def self.config_file(name)
-    File.expand_path("#{rails_root}/config/#{name}", __FILE__)
+  def self.yml_file(name, type = :config)
+    File.expand_path("#{rails_root}/#{type}/#{FILES[type][name]}", __FILE__)
   end
 
   def self.rails_root
@@ -154,5 +200,10 @@ class Monit
 
   def self.set_rails_env(environment)
     @rails_env = environment
+  end
+
+  def self.write_file(path, data)
+    FileUtils.mkdir_p(File.dirname(path))
+    File.open(path, 'w') { |file| file.write(data) }
   end
 end
