@@ -365,6 +365,7 @@ describe Monit do
       end
 
       it "should write an 'updated_at' field to the queues file" do
+        File.should_not_receive(:chmod)
         subject.class.notify_queues_overloaded!
         output = load_yml_file(config_options[:overloaded_queues][:filename], :tmp)
         output["notified_at"].should be_present
