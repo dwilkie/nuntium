@@ -7,7 +7,12 @@ namespace :monit do
     puts "wrote monit config for #{Rails.env} environment to #{path}"
   end
 
-  desc "Alerts (via SMS or Email) if the Nuntium queues are overloaded"
+  desc "Alerts (via SMS or Email) if the monit queues are overloaded"
+  task :notify_queues_overloaded do
+    Rake::Task["monit:notifiy_queues_overloaded"].invoke if Monit.notify_queues_overloaded?
+  end
+
+  desc "Alerts (via SMS or Email) that the monit queues are overloaded"
   task :notify_queues_overloaded! => :environment do
     Monit.notify_queues_overloaded!
   end
