@@ -159,7 +159,7 @@ class Monit
   def self.update_overloaded_queues_file(new_content, old_content = nil)
     old_content ||= overloaded_queues_file
     write_file(
-      yml_file(:overloaded_queues, :tmp), old_content.merge(new_content).to_yaml
+      yml_file(:overloaded_queues, :tmp), old_content.merge(new_content).to_yaml, true
     )
   end
 
@@ -203,8 +203,12 @@ class Monit
     @rails_env = environment
   end
 
-  def self.write_file(path, data)
+  def self.write_file(path, data, all_writable = false)
     FileUtils.mkdir_p(File.dirname(path))
+    if all_writable
+      FileUtils.touch(path) unless File.exists?(path)
+      File.chmod(0646, path)
+    end
     File.open(path, 'w') { |file| file.write(data) }
   end
 end

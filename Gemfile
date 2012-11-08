@@ -39,7 +39,7 @@ group :test do
   gem 'guard-spork'
   gem 'guard-test'
   gem 'rb-inotify'
-  gem "fakefs", :require => "fakefs/safe"
+  gem "fakefs", :require => "fakefs/safe", :git => "git://github.com/defunkt/fakefs.git"
   gem 'database_cleaner'
   gem 'capybara'
   gem 'test-unit', :require => 'test/unit'

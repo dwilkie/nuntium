@@ -1,4 +1,10 @@
 GIT
+  remote: git://github.com/defunkt/fakefs.git
+  revision: f37bf8d6e15ecbfaea46380f2a1240c6e42e363d
+  specs:
+    fakefs (0.4.1)
+
+GIT
   remote: git://github.com/sporkrb/spork.git
   revision: 8ac98544869c3b4c5cf1f664b2d9281bb75c7e3e
   specs:
@@ -66,7 +72,6 @@ GEM
     eventmachine (0.12.10)
     factory_girl (2.6.4)
       activesupport (>= 2.3.9)
-    fakefs (0.4.0)
     ffaker (1.8.0)
     ffi (1.1.5)
     guard (1.5.3)
@@ -213,7 +218,7 @@ DEPENDENCIES
   dynamic_form
   eventmachine
   factory_girl (~> 2.6)
-  fakefs
+  fakefs!
   ffaker
   guard-rspec
   guard-spork
