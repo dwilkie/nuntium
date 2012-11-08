@@ -9,7 +9,7 @@ namespace :monit do
 
   desc "Alerts (via SMS or Email) if the monit queues are overloaded"
   task :notify_queues_overloaded do
-    Rake::Task["monit:notifiy_queues_overloaded"].invoke if Monit.notify_queues_overloaded?
+    Rake::Task["monit:notifiy_queues_overloaded!"].invoke if Monit.notify_queues_overloaded?
   end
 
   desc "Alerts (via SMS or Email) that the monit queues are overloaded"
