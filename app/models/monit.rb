@@ -42,7 +42,7 @@ class Monit
 
     if options[:write_output]
       if monitored_overloaded_queue_names.any?
-        update_overloaded_queues_file("names" => monitored_overloaded_queue_names)
+        update_overloaded_queues_file({"names" => monitored_overloaded_queue_names}, :chmod => true)
       else
         clear_overloaded_queues_file
       end
@@ -64,7 +64,7 @@ class Monit
     if overloaded_queue_names.any?
       queue_summary = overloaded_queue_names.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
       notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
-      update_overloaded_queues_file({"notified_at" => Time.now}, overloaded_queues)
+      update_overloaded_queues_file({"notified_at" => Time.now}, :old_content => overloaded_queues)
     end
   end
 
@@ -156,10 +156,10 @@ class Monit
     load_yml_file(:overloaded_queues, :tmp) || {}
   end
 
-  def self.update_overloaded_queues_file(new_content, old_content = nil)
-    old_content ||= overloaded_queues_file
+  def self.update_overloaded_queues_file(new_content, options = {})
+    options[:old_content] ||= overloaded_queues_file
     write_file(
-      yml_file(:overloaded_queues, :tmp), old_content.merge(new_content).to_yaml, true
+      yml_file(:overloaded_queues, :tmp), options[:old_content].merge(new_content).to_yaml, options[:chmod]
     )
   end
 
