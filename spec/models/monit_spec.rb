@@ -244,6 +244,7 @@ describe Monit do
         result = subject.class.overloaded_queues
         output = load_yml_file(config_options[:overloaded_queues][:filename], :tmp)
         output["names"].should == result
+        File.stat(config_options[:overloaded_queues][:path]).mode.to_s(8)[3..5].should == "646"
       end
 
       context "passing :write_output => false" do
