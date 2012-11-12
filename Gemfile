@@ -35,6 +35,7 @@ end
 group :test do
   gem 'factory_girl', '~> 2.6'
   gem 'spork', :git => 'git://github.com/sporkrb/spork.git'
+  gem 'spork-testunit', :git => "git://github.com/sporkrb/spork-testunit.git"
   gem 'guard-rspec'
   gem 'guard-spork'
   gem 'guard-test'

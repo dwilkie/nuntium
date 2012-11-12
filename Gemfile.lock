@@ -5,6 +5,13 @@ GIT
     fakefs (0.4.1)
 
 GIT
+  remote: git://github.com/sporkrb/spork-testunit.git
+  revision: 8087255296d20dc8e2ff45d4e4c09b09d3078a8d
+  specs:
+    spork-testunit (0.0.8)
+      spork (>= 0.8.0)
+
+GIT
   remote: git://github.com/sporkrb/spork.git
   revision: 8ac98544869c3b4c5cf1f664b2d9281bb75c7e3e
   specs:
@@ -242,6 +249,7 @@ DEPENDENCIES
   ruby-smpp (= 0.2.1)
   smart_asset
   spork!
+  spork-testunit!
   test-unit
   thoughtbot-shoulda
   tmail

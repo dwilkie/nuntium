@@ -24,3 +24,15 @@ guard 'rspec', :all_after_pass => false, :all_on_start => false, :keep_failed =>
   # Capybara request specs
   watch(%r{^app/views/(.+)/(.+)\.(erb|haml)$})          { |m| ["spec/requests/#{m[1]}_spec.rb", "spec/views/#{m[1]}/#{m[2]}.#{m[3]}_spec.rb"] }
 end
+
+guard :test, :all_after_pass => false, :all_on_start => false, :keep_failed => false, :drb => true do
+  watch(%r{^lib/(.+)\.rb$})     { |m| "test/#{m[1]}_test.rb" }
+  watch(%r{^test/.+_test\.rb$})
+  watch('test/test_helper.rb')  { "test" }
+
+  # Rails example
+  watch(%r{^app/models/(.+)\.rb$})                   { |m| "test/unit/#{m[1]}_test.rb" }
+  watch(%r{^app/controllers/(.+)\.rb$})              { |m| "test/functional/#{m[1]}_test.rb" }
+  watch(%r{^app/views/.+\.rb$})                      { "test/integration" }
+  watch('app/controllers/application_controller.rb') { ["test/functional", "test/integration"] }
+end
