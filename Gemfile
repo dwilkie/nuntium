@@ -48,4 +48,5 @@ group :test do
   gem "thoughtbot-shoulda", :require => "shoulda"
   gem 'ffaker'
   gem 'machinist'
+  gem 'fakeweb'
 end
