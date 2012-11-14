@@ -74,6 +74,10 @@ FactoryGirl.define do
   factory :ao_message do
     account
 
+    trait :with_token do
+      sequence(:token) { |n| "6d227b10-b889-f87f-1b29-79b26636d41#{n}" }
+    end
+
     trait :with_custom_attributes do
       custom_attributes { { 'foo' => 'bar' } }
     end
@@ -84,6 +88,10 @@ FactoryGirl.define do
       factory :ao_message_from_bidirectional_smpp_channel_with_custom_attributes do
         with_custom_attributes
       end
+    end
+
+    factory :ao_message_with_token do
+      with_token
     end
   end
 end

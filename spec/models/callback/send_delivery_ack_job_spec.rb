@@ -18,6 +18,10 @@ describe SendDeliveryAckJob do
     )
   end
 
+  let(:ao_message_with_token) do
+    create(:ao_message_with_token, :account => account, :channel => channel)
+  end
+
   let(:get_application) { create(:get_ack_application_with_url, :account => account) }
   let(:post_application) { create(:post_ack_application_with_url, :account => account) }
 
@@ -79,6 +83,18 @@ describe SendDeliveryAckJob do
           assert_delivery_ack(:get)
         end
       end
+
+      context "with a token" do
+        before do
+          setup_channel(get_application, channel)
+          register_delivery_ack(:ao_message => ao_message_with_token)
+        end
+
+        it "should make a GET request for the delivery ack and include the token" do
+          do_job(get_application, :ao_message => ao_message_with_token)
+          assert_delivery_ack(:get)
+        end
+      end
     end
 
     context "for an application configured for POST acks" do
@@ -117,6 +133,18 @@ describe SendDeliveryAckJob do
         it "should make a POST request for the delivery ack with the custom attributes" do
           do_job(post_application, :ao_message => custom_attributes_ao_message)
           assert_delivery_ack(:post, :ao_message => custom_attributes_ao_message)
+        end
+      end
+
+      context "with a token" do
+        before do
+          setup_channel(post_application, channel)
+          register_delivery_ack(:ao_message => ao_message_with_token)
+        end
+
+        it "should make a POST request for the delivery ack and include the token" do
+          do_job(post_application, :ao_message => ao_message_with_token)
+          assert_delivery_ack(:post, :ao_message => ao_message_with_token)
         end
       end
     end

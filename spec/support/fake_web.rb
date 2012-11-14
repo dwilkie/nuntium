@@ -39,10 +39,12 @@ module FakeWebHelpers
 
   def build_ack_query(options = {})
     options[:channel] ||= options[:ao_message].channel
-    {
+    query = {
       "channel" => options[:channel].name,
       "guid" => options[:ao_message].guid,
       "state" => options[:ao_message].state
-    }.merge(options[:ao_message].custom_attributes)
+    }
+    query.merge!("token" => options[:ao_message].token) if options[:ao_message].token
+    query.merge(options[:ao_message].custom_attributes)
   end
 end

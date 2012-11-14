@@ -17,7 +17,12 @@ class SendDeliveryAckJob
 
     return unless @app and @chan and @app.delivery_ack_method != 'none'
 
-    data = {:guid => @msg.guid, :channel => @chan.name, :state => @state}.merge(@msg.custom_attributes)
+    data = {
+      :guid => @msg.guid, :channel => @chan.name, :state => @state
+    }
+
+    data.merge!(:token => @msg.token) if @msg.token
+    data.merge!(@msg.custom_attributes)
 
     options = {:headers => {:content_type => "application/x-www-form-urlencoded"}}
     if @app.delivery_ack_user.present?
