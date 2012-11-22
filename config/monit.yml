@@ -20,10 +20,10 @@ services:
         to:
           - "global-nuntium-service-notify@example.com"
   names:
-    - cron
+    # - cron
     - managed_processes
     - generic_worker:
-        slow: 1
+    #   slow: 1
         fast: 1
     - scheduled_jobs_service
 
