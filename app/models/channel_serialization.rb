@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 module ChannelSerialization
   extend ActiveSupport::Concern
 
@@ -101,17 +118,17 @@ module ChannelSerialization
       chan.ticket_code = hash[:ticket_code] if hash[:ticket_code]
       chan.ticket_message = hash[:ticket_message] if hash[:ticket_message]
 
-      hash_config = hash[:configuration] || {}
-      hash_config = hash_config[:property] || [] if format == :xml and hash_config[:property]
-      hash_config = [hash_config] unless hash_config.blank? or hash_config.kind_of? Array or hash_config.kind_of? String
+      hash_config = hash[:configuration].presence || {}
+      hash_config = hash_config[:property] || [] if format == :xml && hash_config[:property].present?
+      hash_config = [hash_config] unless hash_config.blank? || hash_config.kind_of?(Array) || hash_config.kind_of?(String)
 
       hash_config.each do |property|
         chan.configuration.store_multivalue property[:name].to_sym, property[:value]
       end unless hash_config.kind_of? String
 
-      hash_restrict = hash[:restrictions] || {}
-      hash_restrict = hash_restrict[:property] || [] if format == :xml and hash_restrict[:property]
-      hash_restrict = [hash_restrict] unless hash_restrict.blank? or hash_restrict.kind_of? Array or hash_restrict.kind_of? String
+      hash_restrict = hash[:restrictions].presence || {}
+      hash_restrict = hash_restrict[:property] || [] if format == :xml && hash_restrict[:property]
+      hash_restrict = [hash_restrict] unless hash_restrict.blank? || hash_restrict.kind_of?(Array) || hash_restrict.kind_of?(String)
 
       # force the empty hash at least, if the restrictions were specified
       # this is needed for proper merging when updating through api

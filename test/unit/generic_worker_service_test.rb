@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'test_helper'
 
 class GenericWorkerServiceTest < ActiveSupport::TestCase
@@ -47,6 +64,9 @@ class GenericWorkerServiceTest < ActiveSupport::TestCase
 
     Queues.expects(:subscribe).with(Queues.ao_queue_name_for(@chan), true, true, kind_of(MQ)).yields(header, job)
     @service.start
+
+    # Give EM the opportunity to run queued jobs (header.ack)
+    Thread.pass
   end
 
   test "should execute job notification when enqueued" do

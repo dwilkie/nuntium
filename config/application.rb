@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require File.expand_path('../boot', __FILE__)
 
 require 'rails/all'
@@ -14,9 +31,9 @@ module Nuntium
 
     # Custom directories with classes and modules you want to be autoloadable.
     # config.autoload_paths += %W(#{config.root}/extras)
-    config.autoload_paths += Dir["#{Rails.root}/app/controllers/**/**"]
-    config.autoload_paths += Dir["#{Rails.root}/app/models/**/**"]
-    config.autoload_paths += Dir["#{Rails.root}/app/services/**/**"]
+    config.autoload_paths += Dir["#{Rails.root}/app/controllers/**/**"].select {|x| !x.end_with? '.rb'}
+    config.autoload_paths += Dir["#{Rails.root}/app/models/**/**"].select {|x| !x.end_with? '.rb'}
+    config.autoload_paths += Dir["#{Rails.root}/app/services/**/**"].select {|x| !x.end_with? '.rb'}
 
     # Activate observers that should always be running.
     # config.active_record.observers = :cacher, :garbage_collector, :forum_observer
@@ -47,6 +64,7 @@ module Nuntium
     # Start AMQP after rails loads:
     config.after_initialize do
       Thread.new { EM.run { } }
+      sleep 0.1 until EM.reactor_running?
 
       EM.error_handler do |e|
         puts "Error raised during event loop: #{e.message}"
@@ -60,9 +78,7 @@ module Nuntium
 
       ::Application.all.each(&:bind_queue) rescue nil
       ::Channel.all.each(&:bind_queue) rescue nil
-    end
 
-    config.after_initialize do
       # Twitter OAuth configuration
       if File.exists? "#{Rails.root}/config/twitter_oauth_consumer.yml"
         ::Nuntium::TwitterConsumerConfig = YAML.load_file "#{Rails.root}/config/twitter_oauth_consumer.yml"

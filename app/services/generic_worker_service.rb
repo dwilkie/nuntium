@@ -1,6 +1,23 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 class GenericWorkerService < Service
 
-  PrefetchCount = 1
+  PrefetchCount = 10
   SuspensionTime = 5 * 60
 
   attr_reader :sessions
@@ -43,7 +60,7 @@ class GenericWorkerService < Service
     return if @sessions.include? wq.queue_name
 
     Rails.logger.info "Subscribing to queue #{wq.queue_name} with ack #{wq.ack} and durable #{wq.durable}"
-    wq.subscribe(mq_for wq) { |header, job| perform job, header, wq }
+    wq.subscribe(mq_for wq) { |header, job| Fiber.new { perform job, header, wq }.resume }
   end
 
   def mq_for(wq)

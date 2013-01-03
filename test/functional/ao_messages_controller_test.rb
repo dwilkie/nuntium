@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'test_helper'
 
 class AoMessagesControllerTest < ActionController::TestCase
@@ -128,7 +145,7 @@ class AoMessagesControllerTest < ActionController::TestCase
 
   {nil => false, 'PROT://567' => false, 'sms://5678' => true}.each do |to, ok|
     test "send ao with to = #{to}" do
-      get :create_via_api, {:from => 'sms://1234', :to => to, :subject => 's', :body => 'b', :guid => 'g', :account_name => @account.name, :application_name => @application.name}
+      get :create_via_api, {:from => 'sms://1234', :to => (to ? "#{to}" : nil), :subject => 's', :body => 'b', :guid => 'g', :account_name => @account.name, :application_name => @application.name}
 
       messages = AoMessage.all
       assert_equal 1, messages.length

@@ -203,18 +203,6 @@ ActiveRecord::Schema.define(:version => 20111221215842) do
   add_index "logs", ["account_id", "channel_id"], :name => "index_account_logs_on_account_id_and_channel_id"
   add_index "logs", ["account_id", "id"], :name => "index_account_logs_on_account_id_and_id"
 
-  create_table "managed_processes", :force => true do |t|
-    t.integer  "account_id"
-    t.string   "name"
-    t.string   "start_command"
-    t.string   "stop_command"
-    t.string   "pid_file"
-    t.string   "log_file"
-    t.boolean  "enabled"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-  end
-
   create_table "mobile_numbers", :force => true do |t|
     t.string   "number"
     t.integer  "country_id"

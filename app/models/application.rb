@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'digest/sha2'
 
 class Application < ActiveRecord::Base
@@ -38,6 +55,7 @@ class Application < ActiveRecord::Base
   configuration_accessor :delivery_ack_method, :default => 'none'
   configuration_accessor :delivery_ack_url, :delivery_ack_user, :delivery_ack_password
   configuration_accessor :last_at_guid, :last_ao_guid
+  configuration_accessor :twitter_consumer_key, :twitter_consumer_secret
 
   def use_address_source?
     v = configuration[:use_address_source]
@@ -322,6 +340,8 @@ class Application < ActiveRecord::Base
 
   def configuration
     self[:configuration] ||= {}
+    self[:configuration].symbolize_keys! if self[:configuration].respond_to? :symbolize_keys!
+    self[:configuration]
   end
 
   def strategy_description
@@ -382,6 +402,12 @@ class Application < ActiveRecord::Base
     @logger ||= AccountLogger.new self.account.id, self.id
   end
 
+  def bind_queue
+    Queues.bind_application self
+    true
+  end
+
+
   protected
 
   # Ensures tasks for this account are correct
@@ -405,11 +431,6 @@ class Application < ActiveRecord::Base
   def delete_worker_queue
     wq = WorkerQueue.for_application self
     wq.destroy if wq
-    true
-  end
-
-  def bind_queue
-    Queues.bind_application self
     true
   end
 

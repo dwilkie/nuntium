@@ -1,8 +1,23 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'digest/sha1'
 
 class QstServerChannel < Channel
-  include ActionView::Helpers::DateHelper
-
   has_many :qst_outgoing_messages, :foreign_key => 'channel_id'
 
   validates_presence_of :password
@@ -39,6 +54,8 @@ class QstServerChannel < Channel
   end
 
   def info
+    self.class.send :include, ActionView::Helpers::DateHelper
+
     "Last activity: " + (last_activity_at ? "#{time_ago_in_words(last_activity_at)} ago" : 'never')
   end
 
@@ -60,7 +77,7 @@ class QstServerChannel < Channel
   end
 
   def decoded_salt
-    Base64.decode64 salt
+    Base64.decode64 self.salt
   end
 
   def encode_password(salt, password)

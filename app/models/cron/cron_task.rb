@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 class CronTask < ActiveRecord::Base
   belongs_to :parent, :polymorphic => true
 
@@ -7,17 +24,7 @@ class CronTask < ActiveRecord::Base
 
   # Gets the job to execute on this task
   def get_handler
-    handler = YAML.load(self.code)
-    # If it could not be deserialized property try registering its class
-    # Constantize supposedly only converts a string into the constant,
-    # but somehow it is allowing YAML to create the correct instance.
-    # Black magic, clearly, but it works, as black magic usually does.
-    if handler.instance_of? YAML::Object
-      handler.class.constantize
-      handler = YAML.load(self.code)
-    end
-
-    handler
+    self.code.deserialize_job
   end
 
   # Sets the job to execute on this task

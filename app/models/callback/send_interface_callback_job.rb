@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 class SendInterfaceCallbackJob
   attr_accessor :account_id, :application_id, :message_id, :tries
 
@@ -12,7 +29,7 @@ class SendInterfaceCallbackJob
     @account = Account.find_by_id @account_id
     @app = @account.applications.find_by_id @application_id
     @msg = AtMessage.get_message @message_id
-    return if @msg.state != 'queued'
+    return if @msg.nil? || @msg.state != 'queued'
 
     @msg.tries += 1
     @msg.save!
@@ -44,6 +61,10 @@ class SendInterfaceCallbackJob
       options[:password] = @app.interface_password
     end
 
+    http_method = @app.interface == 'http_get_callback' ? 'GET' : 'POST'
+
+    @app.logger.info :at_message_id => @msg.id, :channel_id => @msg.channel.try(:id), :message => "Executing #{http_method} callback to #{@app.interface_url}"
+
     begin
       res = RestClient::Resource.new(@app.interface_url, options)
       res = @app.interface == 'http_get_callback' ? res["?#{data}"].get : res.post(data)
@@ -54,39 +75,47 @@ class SendInterfaceCallbackJob
           @msg.state = 'delivered'
           @msg.save!
 
-          AtMessage.log_delivery([@msg], @account, 'http_post_callback')
+          AtMessage.log_delivery([@msg], @account, "http #{http_method.downcase} callback")
 
           # If the response includes a body, create an AO message from it
           if res.body.present?
             case netres.content_type
             when 'application/json'
+              @app.logger.info :at_message_id => @msg.id, :channel_id => @msg.channel.try(:id), :message => "#{http_method} callback returned JSON: routed as AO messages"
+
               hashes = JSON.parse(res.body)
               hashes = [hashes] unless hashes.is_a? Array
               hashes.each do |hash|
                 parsed = AoMessage.from_hash hash
                 parsed.token ||= @msg.token
-                @app.route_ao parsed, 'http post callback'
+                @app.route_ao parsed, "http #{http_method.downcase} callback"
               end
             when 'application/xml'
+              @app.logger.info :at_message_id => @msg.id, :channel_id => @msg.channel.try(:id), :message => "#{http_method} callback returned XML: routed as AO messages"
+
               AoMessage.parse_xml(res.body) do |parsed|
                 parsed.token ||= @msg.token
-                @app.route_ao parsed, 'http post callback'
+                @app.route_ao parsed, "http #{http_method.downcase} callback"
               end
             else
+              @app.logger.info :at_message_id => @msg.id, :channel_id => @msg.channel.try(:id), :message => "#{http_method} callback returned text: routed an AO message reply"
               reply = @msg.new_reply res.body
               reply.token = @msg.token
-              @app.route_ao reply, 'http post callback'
+              @app.route_ao reply, "http #{http_method.downcase} callback"
             end
           end
         when Net::HTTPUnauthorized
-          alert_msg = "Sending HTTP POST callback received unauthorized: invalid credentials"
+          alert_msg = "#{http_method} callback to #{@app.interface_url} received unauthorized: invalid credentials"
           @app.alert alert_msg
           raise alert_msg
         else
-          raise "HTTP POST callback failed #{netres.error!}"
+          raise "HTTP #{http_method} callback failed #{netres.error!}"
       end
     rescue RestClient::BadRequest
       @msg.send_failed @account, @app, "Received HTTP Bad Request (404)"
+    rescue => ex
+      @msg.send_failed @account, @app, "#{http_method} callback failed: #{ex.message}"
+      raise ex
     end
   end
 

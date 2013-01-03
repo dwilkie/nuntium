@@ -1,4 +1,19 @@
-require 'twitter'
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
 
 class TwitterChannel < Channel
   include CronChannel
@@ -8,36 +23,70 @@ class TwitterChannel < Channel
 
   configuration_accessor :token, :secret, :screen_name, :welcome_message
 
+  # For when using /api/channels/:name/twitter/authorize
+  configuration_accessor :authorize_token, :authorize_secret, :authorize_callback
+
   def self.default_protocol
     'twitter'
   end
 
-  def self.new_oauth
-    oauth = Twitter::OAuth.new Nuntium::TwitterConsumerConfig['token'], Nuntium::TwitterConsumerConfig['secret']
-    oauth.set_callback_url Nuntium::TwitterConsumerConfig['callback_url']
-    oauth
+  def self.consumer_key
+    Nuntium::TwitterConsumerConfig['token']
   end
 
-  def self.new_client(config)
-    oauth = new_oauth
-    oauth.authorize_from_access config[:token], config[:secret]
+  def self.consumer_secret
+    Nuntium::TwitterConsumerConfig['secret']
+  end
 
-    Twitter::Base.new(oauth)
+  def self.new_client(consumer_key = self.consumer_key, consumer_secret = self.consumer_secret)
+    TwitterOAuth::Client.new(
+      consumer_key: consumer_key,
+      consumer_secret: consumer_secret,
+    )
+  end
+
+  def self.new_authorized_client(token, secret, consumer_key = self.consumer_key, consumer_secret = self.consumer_secret)
+    Twitter::Client.new(
+      consumer_key: consumer_key,
+      consumer_secret: consumer_secret,
+      oauth_token: token,
+      oauth_token_secret: secret,
+    )
+  end
+
+  def new_authorized_client
+    self.class.new_authorized_client token, secret, consumer_key, consumer_secret
+  end
+
+  def new_client
+    self.class.new_client consumer_key, consumer_secret
+  end
+
+  def consumer_key
+    application && application.twitter_consumer_key.present? ? application.twitter_consumer_key : self.class.consumer_key
+  end
+
+  def consumer_secret
+    application && application.twitter_consumer_secret.present? ? application.twitter_consumer_secret : self.class.consumer_secret
+  end
+
+  def authorize_url(callback_url)
+    request_token = new_client.request_token oauth_callback: "#{Nuntium::TwitterConsumerConfig['callback_url']}?channel_id=#{id}"
+
+    self.authorize_token = request_token.token
+    self.authorize_secret = request_token.secret
+    self.authorize_callback = callback_url
+    self.save!
+
+    request_token.authorize_url
   end
 
   def friendship_create(user, follow)
-    client = self.class.new_client(configuration)
-    client.friendship_create user, follow unless client.friendship_exists? user, screen_name
+    new_authorized_client.follow(user, follow: follow)
   end
 
   def info
-    "#{screen_name} <a href=\"#\" onclick=\"twitter_view_rate_limit_status(#{id}); return false;\">view rate limit status</a>"
-  end
-
-  def get_rate_limit_status
-    client = self.class.new_client configuration
-    stat = client.rate_limit_status
-    "Hourly limit: #{stat.hourly_limit}, Remaining hits for this hour: #{stat.remaining_hits}"
+    screen_name
   end
 
   def create_tasks

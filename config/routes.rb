@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 Nuntium::Application.routes.draw do
   resource :session do
     post :register
@@ -58,7 +75,6 @@ Nuntium::Application.routes.draw do
   end
 
   scope '/twitter' do
-    match '/view_rate_limit_status' => 'twitter#view_rate_limit_status', :as => :twitter_rate_limit_status
     match '/callback' => 'twitter#callback', :as => :twitter_callback
   end
 
@@ -70,7 +86,7 @@ Nuntium::Application.routes.draw do
   end
 
   scope '/:account_name/:application_name', :constraints => {:account_name => /.*/, :application_name => /.*/} do
-    get '/rss' => 'rss#index', :as => :rss
+    get '/rss' => 'rss#index', :as => :rss, :format => 'xml'
     post '/rss' => 'rss#create', :as => :create_rss, :constraints => {:account_name => /.*/, :application_name => /.*/}
 
     match '/send_ao' => 'ao_messages#create_via_api', :as => :send_ao, :constraints => {:account_name => /.*/, :application_name => /.*/}
@@ -107,6 +123,8 @@ Nuntium::Application.routes.draw do
       put '/:name' => 'api_channel#update', :as => :api_channels_update
       delete '/:name' => 'api_channel#destroy', :as => :api_channels_destroy
       get '/:name/twitter/friendships/create' => 'api_twitter_channel#friendship_create', :as => :api_twitter_follow
+      get '/:name/twitter/authorize' => 'api_twitter_channel#authorize', :as => :api_twitter_authorize
+      get '/:name/xmpp/add_contact' => 'api_xmpp_channel#add_contact', :as => :api_xmpp_add_contact
     end
 
     get '/candidate/channels' => 'api_channel#candidates', :as => :api_candidate_channels

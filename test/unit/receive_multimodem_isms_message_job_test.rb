@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'test_helper'
 
 class ReceiveMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
@@ -5,7 +22,7 @@ class ReceiveMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
     @chan = MultimodemIsmsChannel.make
   end
 
-  should "perform with zero" do
+  test "should perform with zero" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>
@@ -34,7 +51,7 @@ END_OF_MESSAGE
     assert_equal 0, Log.count
   end
 
-  should "perform with one" do
+  test "should perform with one" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>
@@ -77,7 +94,7 @@ END_OF_MESSAGE
     assert_equal @chan.id, msgs[0].channel_id
   end
 
-  should "perform with two" do
+  test "should perform with two" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>

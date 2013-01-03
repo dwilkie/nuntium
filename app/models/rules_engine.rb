@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 module RulesEngine
   extend self
 
@@ -39,7 +56,7 @@ module RulesEngine
 
     res
   end
-  
+
   def to_xml(xml, rules)
     (rules || []).each do |rule|
       xml.rule :stop => rule['stop'] do
@@ -53,11 +70,10 @@ module RulesEngine
             xml.action m
           end
         end
-        # todo write rule
       end
     end
   end
-  
+
   def from_hash(hash, format)
     if format == :json
       return hash
@@ -65,9 +81,12 @@ module RulesEngine
         # in :xml format we need to flatten :actions => [ { :action => { ... } } ,  { :action => { ... } } ]
         rules = []
         hash[:rule].ensure_array.each do |rule|
-          matchings = rule[:matchings][:matching].ensure_array
-          actions = rule[:actions][:action].ensure_array
-                      
+          matchings = rule[:matchings]
+          matchings = matchings.present? ? matchings[:matching].ensure_array : []
+
+          actions = rule[:actions]
+          actions = actions.present? ? actions[:action].ensure_array : []
+
           rules << RulesEngine.rule(matchings, actions, rule[:stop].to_b)
         end
         return rules

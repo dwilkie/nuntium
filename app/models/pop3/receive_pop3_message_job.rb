@@ -1,5 +1,22 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'net/pop'
-require 'tmail'
+require 'mail'
 
 class ReceivePop3MessageJob
 
@@ -32,7 +49,7 @@ class ReceivePop3MessageJob
     end
 
     pop.each_mail do |mail|
-      tmail = TMail::Mail.parse(mail.pop)
+      tmail = Mail.read_from_string mail.pop
       tmail_body = get_body tmail
 
       sender = (tmail.from || []).first
@@ -44,16 +61,14 @@ class ReceivePop3MessageJob
       msg.subject = tmail.subject
       msg.body = tmail_body
       if remove_quoted
-        Rails.logger.error "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        Rails.logger.error msg.body
         msg.body = ReceivePop3MessageJob.remove_quoted_text_or_text_after_first_empty_line msg.body
       end
       msg.channel_relative_id = tmail.message_id
       msg.timestamp = tmail.date
 
       # Process references to set the thread and reply_to
-      if tmail.references
-        tmail.references.each do |ref|
+      if tmail.references.present?
+        tmail.references.split(',').map(&:strip).each do |ref|
           at_index = ref.index('@')
           next unless ref.start_with?('<') || !at_index
           if ref.end_with?('@message_id.nuntium>')
@@ -72,6 +87,8 @@ class ReceivePop3MessageJob
 
     pop.finish
   rescue => ex
+    puts ex
+    puts ex.backtrace
     AccountLogger.exception_in_channel @channel, ex if @channel
   end
 
@@ -91,15 +108,17 @@ class ReceivePop3MessageJob
   private
 
   def get_body(tmail)
+    tmail = tmail.body
+
     # Not multipart? Return body as is.
-    return tmail.body if !tmail.multipart?
+    return tmail.to_s if !tmail.multipart?
 
     # Return text/plain part.
     tmail.parts.each do |part|
-      return part.body if part.content_type == 'text/plain'
+      return part.body.decoded if part.content_type =~ %r(text/plain)
     end
 
     # Or body if not found
-    return tmail.body
+    return tmail.to_s
   end
 end

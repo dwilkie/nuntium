@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'test_helper'
 
 class SendSmppMessageJobTest < ActiveSupport::TestCase
@@ -9,7 +26,7 @@ class SendSmppMessageJobTest < ActiveSupport::TestCase
     msg = AoMessage.make :account => @chan.account, :channel => @chan, :state => 'delivered'
 
     job = SendSmppMessageJob.new msg.account_id, @chan.id, msg.id
-    assert_false (job.perform nil)
+    job.perform nil
 
     assert_equal 'delivered', msg.state
   end
@@ -18,13 +35,13 @@ class SendSmppMessageJobTest < ActiveSupport::TestCase
     msg = AoMessage.make :account => @chan.account, :state => 'delivered'
 
     job = SendSmppMessageJob.new msg.account_id, @chan.id, msg.id
-    assert_false (job.perform nil)
+    job.perform nil
 
     assert_equal 'delivered', msg.state
   end
 
   test "send message" do
-    msg = AoMessage.make :account => @chan.account, :channel => @chan, :state => 'queued', :from => nil
+    msg = AoMessage.make :account => @chan.account, :channel => @chan, :state => 'queued'
 
     job = SendSmppMessageJob.new msg.account_id, @chan.id, msg.id
     delegate = mock('delegate')
@@ -42,5 +59,4 @@ class SendSmppMessageJobTest < ActiveSupport::TestCase
       {1234 => 'foo', 0x1234 => 'bar'})
     assert job.perform(delegate)
   end
-
 end

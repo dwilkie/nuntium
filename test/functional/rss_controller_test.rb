@@ -1,3 +1,20 @@
+# Copyright (C) 2009-2012, InSTEDD
+# 
+# This file is part of Nuntium.
+# 
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'test_helper'
 require 'base64'
 require 'digest/md5'
@@ -21,7 +38,7 @@ class RssControllerTest < ActionController::TestCase
     options.each do |k, v|
       @request.env[k] = v unless k == :expected_response
     end
-    get :index, :account_name => @account.name, :application_name => @application.name
+    get :index, :account_name => @account.name, :application_name => @application.name, :format => :xml
     assert_response (options[:expected_response] || :ok)
   end
 
@@ -132,7 +149,7 @@ class RssControllerTest < ActionController::TestCase
     @request.env["HTTP_IF_MODIFIED_SINCE"] = time_for_msg(0).to_s
 
     1.upto 5 do |try|
-      get :index, :account_name => @account.name, :application_name => @application.name
+      get :index, :account_name => @account.name, :application_name => @application.name, :format => :xml
 
       msgs = AtMessage.all
       assert_equal 2, msgs.length

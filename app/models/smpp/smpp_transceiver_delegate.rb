@@ -1,5 +1,21 @@
+# Copyright (C) 2009-2012, InSTEDD
+#
+# This file is part of Nuntium.
+#
+# Nuntium is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Nuntium is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
+
 require 'iconv'
-require 'cache'
 
 class SmppTransceiverDelegate
 
@@ -30,6 +46,8 @@ class SmppTransceiverDelegate
     if msg_text.nil?
       logger.warning "Could not find suitable encoding for AoMessage with id #{id}"
       return "Could not find suitable encoding"
+    else
+      msg_text.force_encoding 'ascii-8bit'
     end
 
     send_options = {}
@@ -257,7 +275,7 @@ class SmppTransceiverDelegate
       # Add this new part, sort and get text
       parts.push SmppMessagePart.new(:part_number => partn, :text => text)
       parts.sort! { |x,y| x.part_number <=> y.part_number }
-      text = parts.collect { |x| x.text }.to_s
+      text = parts.map(&:text).join
 
       # Create message from the resulting text
       create_at_message source, destination, data_coding, text
