@@ -56,13 +56,7 @@ GEM
       activesupport (= 3.0.9)
     activesupport (3.0.9)
     addressable (2.3.2)
-    amq-client (0.9.10)
-      amq-protocol (>= 0.9.4)
-      eventmachine
-    amq-protocol (1.0.1)
-    amqp (0.9.8)
-      amq-client (~> 0.9.5)
-      amq-protocol (>= 0.9.4)
+    amqp (0.7.4)
       eventmachine
     arel (2.0.10)
     blather (0.8.2)
@@ -257,7 +251,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  amqp
+  amqp (= 0.7.4)
   blather
   capybara
   ci_reporter
