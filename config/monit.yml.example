@@ -1,0 +1,50 @@
+notify:
+  application_id: 1
+  channels:
+    email:
+      from: "global-monit@nuntium-server.example.com"
+      to:
+        - "global-monit-notify@example.com"
+    sms:
+      from: "1234"
+      to:
+        - "855123456789"
+
+# The services section describes the Nuntium services in which to monitor.
+# Under the names section the key is the service name. e.g. cron
+
+services:
+  notify:
+    channels:
+      email:
+        to:
+          - "global-nuntium-service-notify@example.com"
+  names:
+    # - cron
+    - managed_processes
+    - generic_worker:
+    #   slow: 1
+        fast: 1
+    - scheduled_jobs_service
+
+# The queues section describes the RabbitMQ Queues in which to monitor.
+# Under the names section the key for each queue is it's unique name. e.g. ao_queue.1.smpp.3.
+# You can get the names of the queues by running sudo rabbitmqctl list_queues -p vhost,
+# where vhost is specified in config/amqp.yml
+
+queues:
+  notify:
+    channels:
+      email:
+        to:
+          - "global-queue-notify@example.com"
+  names:
+    ao_queue.1.smpp.1:            # Unique name of the queue e.g. ao_queue.1.smpp.3
+      human_name: "foo"
+      limit: 50                   # Maximum number of items in queue before considered overloaded
+    ao_queue.1.smpp.2:
+      human_name: "bar"
+      limit: 25
+    application_queue.1:
+      human_name: "at message queue"
+      limit: 10
