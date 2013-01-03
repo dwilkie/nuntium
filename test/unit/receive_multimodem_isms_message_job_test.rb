@@ -5,7 +5,7 @@ class ReceiveMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
     @chan = MultimodemIsmsChannel.make
   end
 
-  should "perform with zero" do
+  test "should perform with zero" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>
@@ -34,7 +34,7 @@ END_OF_MESSAGE
     assert_equal 0, Log.count
   end
 
-  should "perform with one" do
+  test "should perform with one" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>
@@ -77,7 +77,7 @@ END_OF_MESSAGE
     assert_equal @chan.id, msgs[0].channel_id
   end
 
-  should "perform with two" do
+  test "should perform with two" do
     msg = <<-END_OF_MESSAGE
 <?xml version="1.0" encoding="ISO-8859-1" ?><Response><Response_End>1</Response_End>
 <Unread_Available>1</Unread_Available>

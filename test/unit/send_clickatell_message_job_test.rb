@@ -5,7 +5,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
     @chan = ClickatellChannel.make
   end
 
-  should "perform" do
+  test "should perform" do
     response = mock('Net::HTTPResponse')
     response.stubs(
       :code => '200',
@@ -24,7 +24,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
     assert_equal 'delivered', msg.state
   end
 
-  should "perform error" do
+  test "should perform error" do
     response = mock('Net::HTTPResponse')
     response.stubs(
       :code => '200',
@@ -49,7 +49,7 @@ class SendClickatellMessageJobTest < ActiveSupport::TestCase
     assert_true @chan.enabled
   end
 
-  should "perform fatal error" do
+  test "should perform fatal error" do
     response = mock('Net::HTTPResponse')
     response.stubs(
       :code => '200',

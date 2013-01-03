@@ -8,7 +8,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     @email = AtMessage.make_unsaved :email
   end
 
-  should "perform no ssl" do
+  test "should perform no ssl" do
     mail = mock('Net::POPMail')
     mail.stubs :pop => msg_as_email(@email)
 
@@ -18,7 +18,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message
   end
 
-  should "perform ssl" do
+  test "should perform ssl" do
     @chan.configuration[:use_ssl] = '1'
     @chan.save!
 
@@ -31,7 +31,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message
   end
 
-  should "perform no message id" do
+  test "should perform no message id" do
     @email.guid = nil
 
     mail = mock('Net::POPMail')
@@ -43,7 +43,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message
   end
 
-  should "perform no ssl removing quoted text" do
+  test "should perform no ssl removing quoted text" do
     @chan.configuration[:remove_quoted_text_or_text_after_first_empty_line] = '1'
     @chan.save!
 
@@ -58,7 +58,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message :body => "Hello"
   end
 
-  should "perform set thread" do
+  test "should perform set thread" do
     mail = mock('Net::POPMail')
     mail.stubs :pop => msg_as_email(@email, :references => '<c@thread.nuntium>, <c@thread.nuntium>')
 
@@ -68,7 +68,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message :custom_attributes => {'references_thread' => 'c'}
   end
 
-  should "perform set reply to" do
+  test "should perform set reply to" do
     mail = mock('Net::POPMail')
     mail.stubs :pop => msg_as_email(@email, :references => '<b@message_id.nuntium>, <b@message_id.nuntium>')
 
@@ -78,7 +78,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message :custom_attributes => {'reply_to' => 'b'}
   end
 
-  should "perform set references" do
+  test "should perform set references" do
     mail = mock('Net::POPMail')
     mail.stubs :pop => msg_as_email(@email, :references => '<a@foo.nuntium>, <b@bar.nuntium>')
 
@@ -88,31 +88,31 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     expect_at_message :custom_attributes => {'references_foo' => 'a', 'references_bar' => 'b'}
   end
 
-  should "remove quoted text or text after first empty line, case quoted text" do
+  test "should remove quoted text or text after first empty line, case quoted text" do
     original = "Hello\n>One\n>Two\n>Three"
     result = ReceivePop3MessageJob.remove_quoted_text_or_text_after_first_empty_line original
     assert_equal "Hello", result
   end
 
-  should "remove quoted text or text after first empty line, case On...:" do
+  test "should remove quoted text or text after first empty line, case On...:" do
     original = "Hello\n\nOn some date someone wrote:\n>One\n>Two\n>Three"
     result = ReceivePop3MessageJob.remove_quoted_text_or_text_after_first_empty_line original
     assert_equal "Hello", result
   end
 
-  should "remove quoted text or text after first empty line, case empty line:" do
+  test "should remove quoted text or text after first empty line, case empty line:" do
     original = "Hello\n\nGoodbye"
     result = ReceivePop3MessageJob.remove_quoted_text_or_text_after_first_empty_line original
     assert_equal "Hello", result
   end
 
-  should "remove quoted text or text after first empty line, case first line is empty:" do
+  test "should remove quoted text or text after first empty line, case first line is empty:" do
     original = "\nHello\n\nGoodbye"
     result = ReceivePop3MessageJob.remove_quoted_text_or_text_after_first_empty_line original
     assert_equal "Hello", result
   end
 
-  should "not throw if mail has no to field" do
+  test "should not throw if mail has no to field" do
     @email.to = nil
 
     AccountLogger.expects(:exception_in_channel).never
@@ -126,7 +126,7 @@ class ReceivePop3MessageJobTest < ActiveSupport::TestCase
     assert_equal 1, AtMessage.count
   end
 
-  should "not throw if mail has no from field" do
+  test "should not throw if mail has no from field" do
     @email.from = nil
 
     AccountLogger.expects(:exception_in_channel).never

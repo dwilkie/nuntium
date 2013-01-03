@@ -5,7 +5,7 @@ class SendMultimodemIsmsMessageJobTest < ActiveSupport::TestCase
     @chan = MultimodemIsmsChannel.make
   end
 
-  should "perform" do
+  test "should perform" do
     response = mock('Net::HTTPResponse')
     response.stubs(
       :code => '200',
