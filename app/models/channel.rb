@@ -1,17 +1,17 @@
 # Copyright (C) 2009-2012, InSTEDD
-# 
+#
 # This file is part of Nuntium.
-# 
+#
 # Nuntium is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # Nuntium is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -91,6 +91,37 @@ class Channel < ActiveRecord::Base
 
   def must_check_valid_in_ui!
     @must_check_valid_in_ui = true
+  end
+
+  def switch_to_backup(options = {})
+    return if recently_switched_to_backup?(options[:timeout])
+    channel_rule = nil
+    channel_action = nil
+    channel_priority = 0
+    switched_to_backup = false
+
+    suggested_channels do |action, rule, priority|
+      if action["value"] == name
+        channel_rule = rule
+        channel_action = action
+        channel_priority = priority
+        break
+      end
+    end
+
+    return unless channel_rule
+
+    # 0 is highest priority
+    suggested_channels do |action, rule, priority|
+      if action["value"] != name && channel_rule["matchings"] == rule["matchings"] && priority > channel_priority
+        channel_action["value"] = action["value"]
+        action["value"] = name
+        switched_to_backup = application.save
+        break
+      end
+    end
+
+    switched_to_backup
   end
 
   def incoming?
@@ -339,5 +370,21 @@ class Channel < ActiveRecord::Base
 
   def requeued_messages_count
     @requeued_messages_count || 0
+  end
+
+  private
+
+  def recently_switched_to_backup?(timeout = nil)
+    timeout ||= 5.minutes
+    application.prioritized_backup_channel_at.present? && application.prioritized_backup_channel_at >= timeout.ago
+  end
+
+  def suggested_channels(&block)
+    (application.ao_rules || []).each_with_index do |ao_rule, rule_index|
+      actions = ao_rule["actions"] || []
+      actions.each do |action|
+        yield action, ao_rule, rule_index if action["property"] == "suggested_channel"
+      end
+    end
   end
 end

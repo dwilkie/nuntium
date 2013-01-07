@@ -133,17 +133,13 @@ class SmppGateway < SmppTransceiverDelegate
       super
       send_ack mt_message_id
 
-    # Disable channel and alert
     else
       alert_msg = "Received command status #{pdu.command_status} in smpp channel #{@channel.name} (#{@channel.id})"
 
+      @channel.switch_to_backup ? alert_msg << ". Switching to backup..." : alert_msg << "WARNING: No backup channel available..."
+
       Rails.logger.warn alert_msg
       @channel.alert alert_msg
-
-      # don't disable or stop the channel if the message is rejected
-      #@channel.enabled = false
-      #@channel.save!
-      #stop
     end
   end
 

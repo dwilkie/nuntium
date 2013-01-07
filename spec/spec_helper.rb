@@ -18,6 +18,7 @@ Spork.each_run do
   # in spec/support/ and its subdirectories.
 
   # Reloading each model causes callbacks to be run twice!
+  Dir[Rails.root.join("app/models/**/*.rb")].each {|f| load f}
   Dir[Rails.root.join("spec/support/**/*.rb")].each {|f| require f}
 
 

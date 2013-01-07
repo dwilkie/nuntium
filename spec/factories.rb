@@ -1,4 +1,21 @@
 FactoryGirl.define do
+  # channel traits
+
+  trait :default_channel_attributes do
+    account
+    sequence(:name) {|n| "channel#{n}" }
+    protocol "protocol"
+    kind "smpp"
+  end
+
+  trait :bidirectional do
+    direction { Channel::Bidirectional }
+  end
+
+  trait :with_application do
+    application
+  end
+
   factory :account do
     sequence(:name) {|n| "account#{n}" }
     password { "password" }
@@ -20,55 +37,81 @@ FactoryGirl.define do
       delivery_ack_url 'http://www.example.com'
     end
 
-    factory :get_ack_application_with_url do
+    trait :get_ack do
       delivery_ack_method 'get'
-      with_url
-
-      factory :get_ack_application_with_url_and_auth do
-        with_auth
-      end
     end
 
-    factory :post_ack_application_with_url do
+    trait :post_ack do
       delivery_ack_method 'post'
-      with_url
+    end
 
-      factory :post_ack_application_with_url_and_auth do
-        with_auth
+    trait :recently_prioritized_backup_channel do
+      prioritized_backup_channel_at { Time.now }
+    end
+
+    trait :not_recently_prioritized_backup_channel do
+      prioritized_backup_channel_at { 5.minutes.ago }
+    end
+
+    trait :with_ao_rules do
+      ignore do
+        suggested_channels {}
+      end
+
+      ao_rules do
+        rules = [{
+         "actions" => [{
+            "value" => "",
+            "property" => "cancel"
+          }],
+          "stop" => "yes",
+          "matchings" => [{
+            "value" => "",
+            "property" => "body",
+            "operator" => "equals"
+          }]
+        }]
+
+        suggested_channels.each do |name, matching|
+          rules << {
+            "actions" => [{
+              "value" => name.to_s, "property" => "suggested_channel"
+            }],
+            "stop" => "yes",
+            "matchings" => [{
+              "value" => matching.to_s,
+              "property" => "to",
+              "operator" => "regex"
+            }]
+          }
+        end
+
+        rules
       end
     end
   end
 
   # not a valid factory
   factory :channel do
-    account
-    sequence(:name) {|n| "channel#{n}" }
-    protocol "protocol"
-    kind "kind"
+    default_channel_attributes
+  end
 
-    trait :bidirectional do
-      direction { Channel::Bidirectional }
-    end
-
-    trait :smpp do
-      kind "smpp"
-    end
-
-    trait :with_application do
-      application
-    end
-
-    factory :bidirectional_channel do
-      bidirectional
-
-      factory :bidirectional_smpp_channel do
-        smpp
-      end
-    end
-
-    factory :smpp_channel do
-      smpp
-    end
+  factory :smpp_channel do
+    default_channel_attributes
+    configuration {{
+      :host => "http://www.example.com",
+      :port => 1234,
+      :source_ton => 0,
+      :source_npi => 0,
+      :destination_ton => 0,
+      :destination_npi => 0,
+      :user => "user",
+      :password => "password",
+      :system_type => 'smpp',
+      :mt_encodings => ['ascii'],
+      :default_mo_encoding => 'ascii',
+      :mt_csms_method => 'udh'
+    }}
   end
 
   factory :ao_message do
@@ -80,18 +123,6 @@ FactoryGirl.define do
 
     trait :with_custom_attributes do
       custom_attributes { { 'foo' => 'bar' } }
-    end
-
-    factory :ao_message_from_bidirectional_smpp_channel do
-      association :channel, :factory => :bidirectional_smpp_channel
-
-      factory :ao_message_from_bidirectional_smpp_channel_with_custom_attributes do
-        with_custom_attributes
-      end
-    end
-
-    factory :ao_message_with_token do
-      with_token
     end
   end
 end

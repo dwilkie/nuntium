@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20111221215842) do
+ActiveRecord::Schema.define(:version => 20130107094014) do
 
   create_table "accounts", :force => true do |t|
     t.string   "name"
@@ -46,7 +46,7 @@ ActiveRecord::Schema.define(:version => 20111221215842) do
     t.integer  "account_id"
     t.integer  "tries",                             :default => 0,         :null => false
     t.string   "subject"
-    t.string   "state",               :limit => 15, :default => "pending", :null => false
+    t.string   "state",                             :default => "pending", :null => false
     t.string   "channel_relative_id"
     t.integer  "channel_id"
     t.text     "custom_attributes"
@@ -57,8 +57,6 @@ ActiveRecord::Schema.define(:version => 20111221215842) do
     t.string   "token",               :limit => 36
   end
 
-  add_index "ao_messages", ["account_id", "channel_id", "state"], :name => "index_ao_messages_on_account_id_and_channel_id_and_state"
-  add_index "ao_messages", ["account_id", "id"], :name => "index_ao_messages_on_account_id_and_id"
   add_index "ao_messages", ["account_id", "state", "channel_id"], :name => "index_ao_messages_on_account_id_and_state_and_channel_id"
   add_index "ao_messages", ["account_id", "to", "id"], :name => "index_ao_messages_on_account_id_and_to_and_id"
   add_index "ao_messages", ["application_id", "token"], :name => "index_ao_messages_on_application_id_and_token"
@@ -68,7 +66,7 @@ ActiveRecord::Schema.define(:version => 20111221215842) do
   create_table "applications", :force => true do |t|
     t.string   "name"
     t.integer  "account_id"
-    t.string   "interface",     :default => "rss"
+    t.string   "interface",                     :default => "rss"
     t.text     "configuration"
     t.datetime "created_at"
     t.datetime "updated_at"
@@ -76,6 +74,7 @@ ActiveRecord::Schema.define(:version => 20111221215842) do
     t.string   "salt"
     t.text     "ao_rules"
     t.text     "at_rules"
+    t.datetime "prioritized_backup_channel_at"
   end
 
   create_table "at_messages", :force => true do |t|
