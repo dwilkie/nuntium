@@ -2,28 +2,24 @@ require 'spec_helper'
 
 describe SendDeliveryAckJob do
   let(:account) { create(:account) }
-  let(:channel) { create(:bidirectional_smpp_channel, :account => account) }
+  let(:channel) { create(:channel, :bidirectional, :account => account) }
 
   let(:ao_message) do
-    create(
-      :ao_message_from_bidirectional_smpp_channel,
-      :account => account, :channel => channel
-    )
+    create(:ao_message, :account => account, :channel => channel)
   end
 
   let(:custom_attributes_ao_message) do
     create(
-      :ao_message_from_bidirectional_smpp_channel_with_custom_attributes,
-      :account => account, :channel => channel
+      :ao_message, :with_custom_attributes, :account => account, :channel => channel
     )
   end
 
   let(:ao_message_with_token) do
-    create(:ao_message_with_token, :account => account, :channel => channel)
+    create(:ao_message, :with_token, :account => account, :channel => channel)
   end
 
-  let(:get_application) { create(:get_ack_application_with_url, :account => account) }
-  let(:post_application) { create(:post_ack_application_with_url, :account => account) }
+  let(:get_application) { create(:application, :get_ack, :with_url, :account => account) }
+  let(:post_application) { create(:application, :post_ack, :with_url, :account => account) }
 
   include FakeWebHelpers
 
@@ -59,7 +55,9 @@ describe SendDeliveryAckJob do
       end
 
       context "with auth" do
-        let(:application) { create(:get_ack_application_with_url_and_auth, :account => account) }
+        let(:application) { create(
+          :application, :get_ack, :with_url, :with_auth, :account => account)
+        }
 
         before do
           setup_channel(application, channel)
@@ -111,7 +109,9 @@ describe SendDeliveryAckJob do
       end
 
       context "with auth" do
-        let(:application) { create(:post_ack_application_with_url_and_auth, :account => account) }
+        let(:application) { create(
+          :application, :post_ack, :with_url, :with_auth, :account => account
+        ) }
 
         before do
           setup_channel(application, channel)

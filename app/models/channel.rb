@@ -68,6 +68,37 @@ class Channel < ActiveRecord::Base
     end
   end
 
+  def switch_to_backup(options = {})
+    return if recently_switched_to_backup?(options[:timeout])
+    channel_rule = nil
+    channel_action = nil
+    channel_priority = 0
+    switched_to_backup = false
+
+    suggested_channels do |action, rule, priority|
+      if action["value"] == name
+        channel_rule = rule
+        channel_action = action
+        channel_priority = priority
+        break
+      end
+    end
+
+    return unless channel_rule
+
+    # 0 is highest priority
+    suggested_channels do |action, rule, priority|
+      if action["value"] != name && channel_rule["matchings"] == rule["matchings"] && priority > channel_priority
+        channel_action["value"] = action["value"]
+        action["value"] = name
+        switched_to_backup = application.save
+        break
+      end
+    end
+
+    switched_to_backup
+  end
+
   def incoming?
     (direction & Incoming) != 0
   end
@@ -308,5 +339,21 @@ class Channel < ActiveRecord::Base
 
   def requeued_messages_count
     @requeued_messages_count || 0
+  end
+
+  private
+
+  def recently_switched_to_backup?(timeout = nil)
+    timeout ||= 5.minutes
+    application.prioritized_backup_channel_at.present? && application.prioritized_backup_channel_at >= timeout.ago
+  end
+
+  def suggested_channels(&block)
+    (application.ao_rules || []).each_with_index do |ao_rule, rule_index|
+      actions = ao_rule["actions"] || []
+      actions.each do |action|
+        yield action, ao_rule, rule_index if action["property"] == "suggested_channel"
+      end
+    end
   end
 end
