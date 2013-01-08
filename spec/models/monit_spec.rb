@@ -356,7 +356,7 @@ describe Monit do
 
       it "should try to send an sms to the relevant notify person" do
         application.should_receive(:route_ao).once.with do |sms, interface|
-          sms.from.should == "sms://#{notify_config(:queues, :channels, :sms, :from)}"
+          sms.from.should be_nil
           sms.to.should == "sms://#{notify_config(:queues, :channels, :sms, :to).first}"
           sms.body.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
           interface.should == "http"

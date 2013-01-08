@@ -6,7 +6,6 @@ notify:
       to:
         - "global-monit-notify@example.com"
     sms:
-      from: "1234"
       to:
         - "855123456789"
 
