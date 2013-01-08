@@ -128,12 +128,11 @@ class Monit
   def self.notify_via_sms!(section_id, message)
     application_id = notify_config(section_id, :application_id)
     recipients = notify_config(section_id, :channels, :sms, :to)
-    from = notify_config(section_id, :channels, :sms, :from)
     return unless (application_id && recipients)
     application = Application.find(application_id)
     recipients.each do |recipient|
       sms = application.ao_messages.build(
-        :from => "sms://#{from}", :to => "sms://#{recipient}", :body => message
+        :to => "sms://#{recipient}", :body => message
       )
       application.route_ao sms, "http"
     end
