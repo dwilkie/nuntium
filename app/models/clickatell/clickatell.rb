@@ -16,7 +16,6 @@
 # along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'csv'
-require_relative 'clickatell_channel'
 
 module Clickatell
   def self.get_credit(query_parameters)
@@ -42,7 +41,7 @@ module Clickatell
     carrier = nil
 
     puts "Downloading clickatell mo coverage..." unless options[:silent]
-    csv = RestClient.get("http://www.clickatell.com/pricing-and-coverage/advanced-pricing-advanced-coverage/?apexport=true&country_numbers=all&index_limit=10").to_s
+    csv = RestClient.get("http://www.clickatell.com/pricing/standard_mo_coverage.php?action=export&country=").to_s
 
     CSV.parse(csv) do |row|
       # empty row, skip
@@ -57,15 +56,21 @@ module Clickatell
         next
       end
 
-      country = Country.find_by_clickatell_name row[0]
-      if not country
-        puts red("Country not found: #{row[0]}") unless options[:silent]
+      # if is country row
+      if row[0]
+        countryRow = row
+
+        country = Country.find_by_clickatell_name row[0]
+        if not country
+          puts red("Country not found: #{row[0]}") unless options[:silent]
+        end
         next
       end
 
-      carrier = Carrier.find_by_clickatell_name row[1]
+      next if not country # missing country => missing carrier
+      carrier = Carrier.find_by_clickatell_name row[2]
       if not carrier
-        puts red("Country/carrier not found: #{country.clickatell_name} - #{row[1]}") unless options[:silent]
+        puts red("Country/carrier not found: #{country.clickatell_name} - #{row[2]}") unless options[:silent]
         next
       end
 
