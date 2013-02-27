@@ -1,23 +1,24 @@
 # Copyright (C) 2009-2012, InSTEDD
-# 
+#
 # This file is part of Nuntium.
-# 
+#
 # Nuntium is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # Nuntium is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with Nuntium.  If not, see <http://www.gnu.org/licenses/>.
 
 require "test_helper"
 
 class ClickatellTest < ActiveSupport::TestCase
+  COVERAGE_URL = "http://www.clickatell.com/pricing-and-coverage/advanced-pricing-advanced-coverage/?apexport=true&country_numbers=all&index_limit=10"
 
   def setup
     @usa = Country.make :name => 'USA', :iso2 => 'US'
@@ -29,16 +30,9 @@ class ClickatellTest < ActiveSupport::TestCase
     @nex = Carrier.make :name => 'Nextel (iDEN)', :clickatell_name => 'Nextel (iDEN)', :country => @arg
     @tel = Carrier.make :name => 'Telstra', :clickatell_name => 'Telstra', :country => @aus
 
-    @s = <<-EOF
-Country, Country Code, Network, +41,+44 [A] *,+46,+61,+49,+45,+44 [B]
-"Argentina","54"
-,,"AMX(Claro)","1","2","3","4","x","x","x"
-,,"Nextel (iDEN)","5","6","7","x","x","x","x"
-"Australia","61"
-,,"Telstra","x","8","x","9","x","10","11"
-EOF
+    @s =  File.read("#{Rails.root}/test/fixtures/nuntium_coverage_sample.csv")
 
-    RestClient.expects(:get).with("http://www.clickatell.com/pricing/standard_mo_coverage.php?action=export&country=").returns(@s)
+    RestClient.expects(:get).with(COVERAGE_URL).returns(@s)
   end
 
   test "create coverage tables" do
