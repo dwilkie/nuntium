@@ -38,10 +38,25 @@ group :development do
   gem 'pry-debugger'
 end
 
+group :test, :development do
+  gem 'rspec-rails'
+end
+
 group :test do
+  gem 'factory_girl', '~> 2.6'
+  gem 'spork', :git => 'git://github.com/sporkrb/spork.git'
+  gem 'spork-testunit', :git => "git://github.com/sporkrb/spork-testunit.git"
+  gem 'guard-rspec'
+  gem 'guard-spork'
+  gem 'guard-test'
+  gem 'rb-inotify'
+  gem "fakefs", :require => "fakefs/safe", :git => "git://github.com/defunkt/fakefs.git"
+  gem 'database_cleaner'
+  gem 'capybara'
   gem 'test-unit', :require => 'test/unit'
   gem "mocha"
   gem "thoughtbot-shoulda", :require => "shoulda"
   gem 'ffaker'
   gem 'machinist'
+  gem 'fakeweb'
 end
