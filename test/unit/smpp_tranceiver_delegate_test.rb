@@ -449,4 +449,3 @@ class SmppTranceiverDelegateTest < ActiveSupport::TestCase
   end
 
 end
-
