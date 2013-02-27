@@ -19,6 +19,8 @@ require 'csv'
 require_relative 'clickatell_channel'
 
 module Clickatell
+  COVERAGE_URL = "http://www.clickatell.com/pricing-and-coverage/advanced-pricing-advanced-coverage/?apexport=true&country_numbers=all&index_limit=10"
+
   def self.get_credit(query_parameters)
     Clickatell.get("/http/getbalance?#{query_parameters.to_query}").body
   end
@@ -42,7 +44,7 @@ module Clickatell
     carrier = nil
 
     puts "Downloading clickatell mo coverage..." unless options[:silent]
-    csv = RestClient.get("http://www.clickatell.com/pricing-and-coverage/advanced-pricing-advanced-coverage/?apexport=true&country_numbers=all&index_limit=10").to_s
+    csv = RestClient.get(COVERAGE_URL).to_s
 
     CSV.parse(csv) do |row|
       # empty row, skip
