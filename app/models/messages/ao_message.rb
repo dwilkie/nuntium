@@ -76,21 +76,21 @@ class AoMessage < ActiveRecord::Base
 
   def send_delivery_ack
     unless changed?
-      account.logger.warning("Not posting delivery receipt because message was not changed. State is: #{state}")
+      account.logger.warning(:channel_id => channel_id, :ao_message_id => id, :message => "Not posting delivery receipt because message was not changed. State is: #{state}")
     end
 
     unless state == 'failed' || state == 'delivered' || state == 'confirmed'
-      account.logger.warning("Not posting delivery receipt because message state is not 'failed' || 'delivered' || 'confirmed'. State is: #{state}")
+      account.logger.warning(:channel_id => channel_id, :ao_message_id => id, :message => "Not posting delivery receipt because message state is not 'failed' || 'delivered' || 'confirmed'. State is: #{state}")
     end
 
     unless channel_id
-      account.logger.warning("Not posting delivery receipt because channel_id is nil. State is: #{state}")
+      account.logger.warning(:channel_id => channel_id, :ao_message_id => id, :message => "Not posting delivery receipt because channel_id is nil. State is: #{state}")
     end
 
     app = self.application
 
     unless app.try(:delivery_ack_method) != 'none'
-      account.logger.warning("Not posting delivery receipt because app.delivery_ack_method == 'none' State is: #{state}")
+      account.logger.warning(:channel_id => channel_id, :ao_message_id => id, :message => "Not posting delivery receipt because app.delivery_ack_method == 'none' State is: #{state}")
     end
 
     return unless changed?
@@ -100,6 +100,8 @@ class AoMessage < ActiveRecord::Base
 
     app = self.application
     return true unless app and app.delivery_ack_method != 'none'
+
+    account.logger.info(:channel_id => channel_id, :ao_message_id => id, :message => "Publishing SendDeliveryAckJob. State is: #{state}")
 
     Queues.publish_application app, SendDeliveryAckJob.new(account_id, application_id, id, state)
     true
