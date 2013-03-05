@@ -34,7 +34,6 @@ class SendDeliveryAckJob
 
     begin
       @app.delivery_ack_method == 'get' ? res["?#{data.to_query}"].get : res.post(data)
-      @app.logger.info :ao_message_id => @message_id, :message => "Successfully posted delivery receipt"
     rescue RestClient::Unauthorized
       alert_msg = "Sending HTTP delivery ack received unauthorized: invalid credentials"
       @app.alert alert_msg
