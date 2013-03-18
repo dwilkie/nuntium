@@ -11,9 +11,14 @@ describe SmppGateway do
 
   describe "#message_rejected(transceiver, mt_message_id, pdu)" do
     context "the message fails due to a command status 8" do
-      def assert_alert(msg)
-         Rails.logger.should_receive(:warn).with(/#{msg}/)
-         channel.should_receive(:alert).with(/#{msg}/)
+      def assert_alert(msg, options = {})
+        options[:channel_alert] = true unless options[:channel_alert] == false
+        Rails.logger.should_receive(:warn).with(/#{msg}/)
+        if options[:channel_alert]
+          channel.should_receive(:alert).with(/#{msg}/)
+        else
+          channel.should_not_receive(:alert)
+        end
       end
 
       before do
@@ -41,8 +46,8 @@ describe SmppGateway do
           channel.stub(:switch_to_backup).and_return(false)
         end
 
-        it "should include alert that no backup channel is available" do
-          assert_alert("WARNING: No backup channel available")
+        it "should log that no backup channel is available but not send an email" do
+          assert_alert("WARNING: No backup channel available", :channel_alert => false)
           subject.message_rejected(transceiver, ao_message.id, pdu)
         end
       end

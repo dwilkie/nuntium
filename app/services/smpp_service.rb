@@ -113,10 +113,14 @@ class SmppGateway < SmppTransceiverDelegate
     else
       alert_msg = "Received command status #{pdu.command_status} in smpp channel #{@channel.name} (#{@channel.id})"
 
-      @channel.switch_to_backup ? alert_msg << ". Switching to backup..." : alert_msg << "WARNING: No backup channel available..."
+      if @channel.switch_to_backup
+        alert_msg << ". Switching to backup..."
+        @channel.alert alert_msg
+      else
+        alert_msg << "WARNING: No backup channel available..."
+      end
 
       Rails.logger.warn alert_msg
-      @channel.alert alert_msg
     end
   end
 
