@@ -343,22 +343,46 @@ describe Monit do
     context "the queues are overloaded" do
       let(:application_id) { notify_config(:application_id) }
 
+      let(:account) do
+        create(:account, :with_alert_emails)
+      end
+
       let(:application) do
         without_fakefs do
-          create(:application, :id => application_id)
+          create(:application, :id => application_id, :account => account)
         end
       end
 
       before do
         generate_config_file!(:overloaded_queues)
         Application.stub(:find).and_return(application)
+        reset_email
+      end
+
+      def last_email
+        ActionMailer::Base.deliveries.last
+      end
+
+      def reset_email
+        ActionMailer::Base.deliveries = []
+      end
+
+      def assert_alert_content(actual_alert)
+        actual_alert.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
+      end
+
+      it "should try to send an email to the relevant notify address" do
+        subject.class.notify_queues_overloaded!
+        last_email.should be_present
+        assert_alert_content(last_email.subject)
+        last_email.body.should be_empty
       end
 
       it "should try to send an sms to the relevant notify person" do
         application.should_receive(:route_ao).once.with do |sms, interface|
           sms.from.should be_nil
           sms.to.should == "sms://#{notify_config(:queues, :channels, :sms, :to).keys.first}"
-          sms.body.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
+          assert_alert_content(sms.body)
           sms.suggested_channel.should == notify_config(:queues, :channels, :sms, :to).values.first
           interface.should == "http"
         end

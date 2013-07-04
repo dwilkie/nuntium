@@ -138,8 +138,17 @@ class Monit
     end
   end
 
+  def self.notify_via_email!(section_id, message)
+    application_id = notify_config(section_id, :application_id)
+    notify_email = notify_config(section_id, :channels, :email)
+    return unless (application_id && notify_email)
+    account = Application.find(application_id).account
+    AlertMailer.error(account, message, nil).deliver if account.alert_emails.present?
+  end
+
   def self.notify_channels!(section_id, message)
     notify_via_sms!(section_id, message)
+    notify_via_email!(section_id, message)
   end
 
   def self.notify_config(section_id, *fields)

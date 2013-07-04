@@ -1,10 +1,7 @@
 notify:
   application_id: 1
   channels:
-    email:
-      from: "global-monit@nuntium-server.example.com"
-      to:
-        - "global-monit-notify@example.com"
+    email: true
     sms:
       to:
         - "855123456789"
@@ -15,9 +12,7 @@ notify:
 services:
   notify:
     channels:
-      email:
-        to:
-          - "global-nuntium-service-notify@example.com"
+      email: true
   names:
     # - cron
     - managed_processes
@@ -34,9 +29,7 @@ services:
 queues:
   notify:
     channels:
-      email:
-        to:
-          - "global-queue-notify@example.com"
+      email: true
   names:
     ao_queue.1.smpp.1:            # Unique name of the queue e.g. ao_queue.1.smpp.3
       human_name: "foo"

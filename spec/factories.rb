@@ -20,6 +20,10 @@ FactoryGirl.define do
     sequence(:name) {|n| "account#{n}" }
     password { "password" }
     password_confirmation { password }
+
+    trait :with_alert_emails do
+      alert_emails "foo@example.com"
+    end
   end
 
   factory :application do
