@@ -1,5 +1,7 @@
 # Nuntium
 
+[![Build Status](https://travis-ci.org/dwilkie/nuntium.png)](https://travis-ci.org/dwilkie/nuntium)
+
 *Note:* This is a fork of Nuntium ported to git with some additional feature enhancements. Thie official version is hosted on [Bitbucket](https://bitbucket.org/instedd/nuntium).
 
 Nuntium is an open source and free platform developed by [InSTEDD](http://www.instedd.org) that allows applications to send and receive all type of messages. Examples of messages are sms, emails and twitter direct messages.
