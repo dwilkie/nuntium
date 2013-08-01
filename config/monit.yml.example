@@ -4,7 +4,7 @@ notify:
     email: true
     sms:
       to:
-        - 855123456789: "twilio"
+        855123456789: "twilio"
 
 # The services section describes the Nuntium services in which to monitor.
 # Under the names section the key is the service name. e.g. cron
