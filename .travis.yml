@@ -6,3 +6,9 @@ branches:
 before_script:
   - "cp config/database.yml.example config/database.yml"
   - "cp config/monit.yml.example config/monit.yml"
+  - mysql -e "CREATE DATABASE nuntium_test;"
+  - mysql -e "CREATE USER 'nuntium'@'localhost';"
+  - mysql -e "SET PASSWORD FOR 'nuntium'@'localhost' = PASSWORD('secret');"
+  - mysql -e "GRANT ALL ON nuntium_test.* to 'nuntium'@'localhost';"
+services:
+  - memcache
