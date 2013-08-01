@@ -9,6 +9,5 @@ before_script:
   - mysql -e "CREATE DATABASE nuntium_test;"
   - mysql -e "CREATE USER 'nuntium'@'localhost';"
   - mysql -e "SET PASSWORD FOR 'nuntium'@'localhost' = PASSWORD('secret');"
-  - mysql -e "GRANT ALL ON nuntium_test to 'nuntium'@'localhost';"
 services:
   - memcache
