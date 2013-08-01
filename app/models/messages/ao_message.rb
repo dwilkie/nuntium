@@ -1,4 +1,7 @@
 class AoMessage < ActiveRecord::Base
+  # looks for channel_name + FAILOVER_CHANNEL_ID as the failover channel
+  FAILOVER_CHANNEL_ID = "2"
+
   belongs_to :account
   belongs_to :application
   belongs_to :channel
@@ -72,6 +75,18 @@ class AoMessage < ActiveRecord::Base
 
   def route_failover
     return unless state_was != 'failed' && state == 'failed'
+
+    if failover_channels.blank? && channel
+      channel_name = self.channel.name
+
+      failover_channel_regex = /#{FAILOVER_CHANNEL_ID}$/
+
+      failover_channel_name = (channel_name =~ failover_channel_regex) ? channel_name.gsub(failover_channel_regex, "") : (channel_name + FAILOVER_CHANNEL_ID)
+
+      failover_channel = Channel.find_by_name(failover_channel_name)
+      self.failover_channels = failover_channel.id.to_s if failover_channel
+    end
+
     return unless self.failover_channels.present?
 
     chans = self.failover_channels.split(',')
@@ -86,6 +101,7 @@ class AoMessage < ActiveRecord::Base
 
     ThreadLocalLogger.reset
     ThreadLocalLogger << "Re-route failover"
+
     chan.route_ao self, 're-route', :dont_save => true
   end
 end
