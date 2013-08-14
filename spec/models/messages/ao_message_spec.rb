@@ -23,6 +23,8 @@ describe AoMessage do
 
           before do
             subject.state = "failed"
+            account.stub_chain(:channels, :find_by_name)
+            account.stub_chain(:channels, :find_by_name).with(failover_channel.name).and_return(failover_channel)
             account.stub_chain(:channels, :find_by_id).with(failover_channel.id.to_s).and_return(failover_channel)
           end
 
