@@ -74,7 +74,7 @@ class AoMessage < ActiveRecord::Base
   end
 
   def route_failover
-    return unless state_was != 'failed' && state == 'failed'
+    return unless state_was != 'failed' && state == 'failed' && tries < account.max_tries
 
     if failover_channels.blank? && channel
       channel_name = self.channel.name

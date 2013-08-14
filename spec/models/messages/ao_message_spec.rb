@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe AoMessage do
-  let(:account) { create(:account) }
+  let(:account) { create(:account, :max_tries => 3) }
   let(:channel) { create_channel }
 
   def create_channel(attributes = {})
@@ -53,8 +53,17 @@ describe AoMessage do
 
           context "and a failover channel is available" do
             context "set explicitly" do
-              subject { create_ao_message(:failover_channels => failover_channel.id.to_s) }
+              def create_ao_message(attributes = {})
+                super({:failover_channels => failover_channel.id.to_s}.merge(attributes))
+              end
+
+              subject { create_ao_message }
               it_should_behave_like "re-routing the AO"
+
+              context "max_tries has been reached for this AO" do
+                subject { create_ao_message(:tries => account.max_tries) }
+                it_should_behave_like "not re-routing the AO"
+              end
             end
 
             context "set implictly by the channel name" do
