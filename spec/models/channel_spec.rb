@@ -1,7 +1,26 @@
 require 'spec_helper'
 
 describe Channel do
-  describe "#switch_to_backup", :focus do
+
+  describe "#implicit_failover_channel" do
+    def create_channel(options = {})
+      create(:smpp_channel, :bidirectional, options)
+    end
+
+    let(:account) { create(:account) }
+    let(:channel) { create_channel(:account => account, :name => "channel") }
+    let(:failover_channel) { create_channel(:account => account, :name => "channel2") }
+
+    it "should return the failover channel when appropriate" do
+      channel.implicit_failover_channel.should be_nil
+      failover_channel
+      channel.implicit_failover_channel.should == failover_channel
+      failover_channel.implicit_failover_channel.should == channel
+    end
+  end
+
+  describe "#switch_to_backup" do
+
     def setup_channel(*args)
       create(:channel, :bidirectional, :with_application, *args)
     end

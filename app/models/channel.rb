@@ -9,6 +9,9 @@ class Channel < ActiveRecord::Base
   Outgoing = 2
   Bidirectional = Incoming + Outgoing
 
+  # looks for channel_name + FAILOVER_CHANNEL_ID as the failover channel
+  IMPLICIT_FAILOVER_CHANNEL_ID = "2"
+
   belongs_to :account
   belongs_to :application
 
@@ -66,6 +69,13 @@ class Channel < ActiveRecord::Base
       result = x.configuration[:_p] <=> y.configuration[:_p] if result == 0
       result
     end
+  end
+
+  def implicit_failover_channel
+    return @implicit_failover_channel if @implicit_failover_channel
+    failover_channel_regex = /#{IMPLICIT_FAILOVER_CHANNEL_ID}$/
+    failover_channel_name = (name =~ failover_channel_regex) ? name.gsub(failover_channel_regex, "") : (name + IMPLICIT_FAILOVER_CHANNEL_ID)
+    @implicit_failover_channel = account.channels.find_by_name(failover_channel_name)
   end
 
   def switch_to_backup(options = {})

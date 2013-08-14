@@ -62,6 +62,11 @@ class Monit
     overloaded_queues = overloaded_queues_file
     overloaded_queue_names = overloaded_queues["names"] || {}
     if overloaded_queue_names.any?
+      overloaded_queue_names.each do |overloaded_queue, metadata|
+        if overloaded_channel = metadata["channel"]
+          Channel.find_by_name!(overloaded_channel).switch_to_backup
+        end
+      end
       queue_summary = overloaded_queue_names.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
       notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
       update_overloaded_queues_file({"notified_at" => Time.now}, :old_content => overloaded_queues)

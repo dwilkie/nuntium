@@ -1,7 +1,4 @@
 class AoMessage < ActiveRecord::Base
-  # looks for channel_name + FAILOVER_CHANNEL_ID as the failover channel
-  FAILOVER_CHANNEL_ID = "2"
-
   belongs_to :account
   belongs_to :application
   belongs_to :channel
@@ -76,16 +73,7 @@ class AoMessage < ActiveRecord::Base
   def route_failover
     return unless state_was != 'failed' && state == 'failed' && tries < account.max_tries
 
-    if failover_channels.blank? && channel
-      channel_name = self.channel.name
-
-      failover_channel_regex = /#{FAILOVER_CHANNEL_ID}$/
-
-      failover_channel_name = (channel_name =~ failover_channel_regex) ? channel_name.gsub(failover_channel_regex, "") : (channel_name + FAILOVER_CHANNEL_ID)
-
-      failover_channel = Channel.find_by_name(failover_channel_name)
-      self.failover_channels = failover_channel.id.to_s if failover_channel
-    end
+    self.failover_channels = channel.implicit_failover_channel.id.to_s if failover_channels.blank? && channel.try(:implicit_failover_channel)
 
     return unless self.failover_channels.present?
 

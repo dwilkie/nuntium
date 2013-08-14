@@ -32,9 +32,11 @@ queues:
       email: true
   names:
     ao_queue.1.smpp.1:            # Unique name of the queue e.g. ao_queue.1.smpp.3
+      channel: "channel1"
       human_name: "foo"
       limit: 50                   # Maximum number of items in queue before considered overloaded
     ao_queue.1.smpp.2:
+      channel: "channel2"
       human_name: "bar"
       limit: 25
     application_queue.1:

@@ -2,6 +2,9 @@ require 'spec_helper'
 
 describe Monit do
 
+  let(:channel_1_name) { "channel1" }
+  let(:channel_2_name) { "channel2" }
+
   include FakeFS::SpecHelpers
 
   let(:config_options) {{
@@ -335,7 +338,6 @@ describe Monit do
   end
 
   describe ".notify_queues_overloaded!" do
-
     def notify_config(section_id, *fields)
       config_section(:monit, section_id, :notify, *fields) || config_section(:monit, :notify, *fields)
     end
@@ -353,8 +355,10 @@ describe Monit do
         end
       end
 
+      let(:config) { {} }
+
       before do
-        generate_config_file!(:overloaded_queues)
+        generate_config_file!(:overloaded_queues, config)
         Application.stub(:find).and_return(application)
         reset_email
       end
@@ -387,6 +391,32 @@ describe Monit do
           interface.should == "http"
         end
         subject.class.notify_queues_overloaded!
+      end
+
+      context "given a channel name is given for the overloaded queue" do
+        let(:channel_1) { create_channel(:name => channel_1_name) }
+        let(:channel_2) { create_channel(:name => channel_2_name) }
+
+        def create_channel(options = {})
+          create(:channel, :bidirectional, {:application => application}.merge(options))
+        end
+
+        let(:config) {
+          new_config = config_options[:overloaded_queues][:config].dup
+          new_config["names"]["queue_1"]["channel"] = channel_1_name
+          new_config["names"]["queue_2"]["channel"] = channel_2_name
+          new_config
+        }
+
+        before do
+          Channel.stub(:find_by_name!).and_return(channel_1, channel_2)
+        end
+
+        it "should switch to the backup channel" do
+          channel_1.should_receive(:switch_to_backup)
+          channel_2.should_receive(:switch_to_backup)
+          subject.class.notify_queues_overloaded!
+        end
       end
 
       it "should write an 'updated_at' field to the queues file" do
