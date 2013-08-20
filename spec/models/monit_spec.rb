@@ -2,9 +2,6 @@ require 'spec_helper'
 
 describe Monit do
 
-  let(:channel_1_name) { "channel1" }
-  let(:channel_2_name) { "channel2" }
-
   include FakeFS::SpecHelpers
 
   let(:config_options) {{
@@ -21,12 +18,12 @@ describe Monit do
       :filename => ".overloaded_queues.yml",
       :config => {
         "names" => {
-          "queue_1" => {
+          "ao_queue.1.smpp.1" => {
             "human_name" => "human_queue_name_1",
             "limit" => "20",
             "current" => "25"
           },
-          "queue_2" => {
+          "ao_queue.1.smpp.2" => {
             "human_name" => "human_queue_name_2",
             "limit" => "30",
             "current" => "34"
@@ -236,10 +233,24 @@ describe Monit do
         stub_list_queues(overloaded_queue_report)
       end
 
+      context "and an overloaded queues file exists" do
+        before do
+          generate_config_file!(:overloaded_queues)
+        end
+
+        it "should return the monit queue configuration and the previous number of items in the queue" do
+          result = subject.class.overloaded_queues
+          overloaded_queues.each do |overloaded_queue|
+            result[overloaded_queue]["previous"].should be_present
+          end
+        end
+      end
+
       it "should return the monit queue configuration and the actual number of items in the queue" do
         result = subject.class.overloaded_queues
         overloaded_queues.each do |overloaded_queue|
           result[overloaded_queue]["current"].should be_present
+          result[overloaded_queue].should_not have_key("previous")
         end
       end
 
@@ -394,27 +405,36 @@ describe Monit do
       end
 
       context "given a channel name is given for the overloaded queue" do
-        let(:channel_1) { create_channel(:name => channel_1_name) }
-        let(:channel_2) { create_channel(:name => channel_2_name) }
+
+        let(:channel_names) { ["channel1", "channel2"] }
+
+        let(:channels) do
+          channels = []
+          channel_names.each do |channel_name|
+            channels << create_channel(:name => channel_name)
+          end
+          channels
+        end
 
         def create_channel(options = {})
           create(:channel, :bidirectional, {:application => application}.merge(options))
         end
 
-        let(:config) {
+        let(:config) do
           new_config = config_options[:overloaded_queues][:config].dup
-          new_config["names"]["queue_1"]["channel"] = channel_1_name
-          new_config["names"]["queue_2"]["channel"] = channel_2_name
+          new_config["names"].each_with_index do |(channel_name, metadata), index|
+            metadata["channel"] = channel_names[index]
+          end
           new_config
-        }
+        end
 
         before do
-          Channel.stub(:find_by_name!).and_return(channel_1, channel_2)
+          Channel.stub(:find_by_name!).and_return(channels[0], channels[1])
         end
 
         it "should switch to the backup channel" do
-          channel_1.should_receive(:switch_to_backup)
-          channel_2.should_receive(:switch_to_backup)
+          channels[0].should_receive(:switch_to_backup)
+          channels[1].should_receive(:switch_to_backup)
           subject.class.notify_queues_overloaded!
         end
       end

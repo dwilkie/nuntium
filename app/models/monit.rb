@@ -36,7 +36,10 @@ class Monit
       items_in_queue = queue_data[1].to_i
       queue_config = queues_config[queue_name]
       if queue_config && queue_config["limit"] && items_in_queue > queue_config["limit"]
-        monitored_overloaded_queue_names[queue_name] = queue_config.merge("current" => items_in_queue)
+        overloaded_queue_config = queue_config.merge("current" => items_in_queue)
+        previous_items_in_queue = previous_items_in_queue(queue_name)
+        overloaded_queue_config.merge!("previous" => previous_items_in_queue) if previous_items_in_queue
+        monitored_overloaded_queue_names[queue_name] = overloaded_queue_config
       end
     end
 
@@ -69,7 +72,7 @@ class Monit
       end
       queue_summary = overloaded_queue_names.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")
       notify_channels!(:queues, "Nuntium Queue(s) Overloaded! #{queue_summary}")
-      update_overloaded_queues_file({"notified_at" => Time.now}, :old_content => overloaded_queues)
+      update_overloaded_queues_file({"notified_at" => Time.now})
     end
   end
 
@@ -85,6 +88,12 @@ class Monit
       end
     end
     configs.flatten
+  end
+
+  def self.previous_items_in_queue(queue_name)
+    overloaded_queue_names = overloaded_queues_file["names"] || {}
+    overloaded_queue = overloaded_queue_names[queue_name] || {}
+    overloaded_queue["current"]
   end
 
   def self.working_group_configs(service)
@@ -166,7 +175,7 @@ class Monit
   end
 
   def self.overloaded_queues_file
-    load_yml_file(:overloaded_queues, :tmp) || {}
+    @overloaded_queues = load_yml_file(:overloaded_queues, :tmp) || {}
   end
 
   def self.update_overloaded_queues_file(new_content, options = {})
