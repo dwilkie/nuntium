@@ -66,8 +66,12 @@ class Monit
     overloaded_queue_names = overloaded_queues["names"] || {}
     if overloaded_queue_names.any?
       overloaded_queue_names.each do |overloaded_queue, metadata|
-        if overloaded_channel = metadata["channel"]
-          Channel.find_by_name!(overloaded_channel).switch_to_backup
+        if overloaded_channel_name = metadata["channel"]
+          overloaded_channel = Channel.find_by_name!(overloaded_channel_name)
+          overloaded_channel.switch_to_backup
+          if metadata["previous"] && metadata["current"].to_i >= metadata["previous"].to_i
+            overloaded_channel.touch_managed_process
+          end
         end
       end
       queue_summary = overloaded_queue_names.values.map {|queue| "#{queue['human_name']} (#{queue['current']})" }.join(", ")

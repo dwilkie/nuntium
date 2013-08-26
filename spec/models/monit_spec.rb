@@ -417,13 +417,14 @@ describe Monit do
         end
 
         def create_channel(options = {})
-          create(:channel, :bidirectional, {:application => application}.merge(options))
+          create(:smpp_channel, :bidirectional, {:application => application}.merge(options))
         end
 
         let(:config) do
           new_config = config_options[:overloaded_queues][:config].dup
           new_config["names"].each_with_index do |(channel_name, metadata), index|
             metadata["channel"] = channel_names[index]
+            metadata["previous"] = metadata["current"]
           end
           new_config
         end
@@ -433,8 +434,10 @@ describe Monit do
         end
 
         it "should switch to the backup channel" do
-          channels[0].should_receive(:switch_to_backup)
-          channels[1].should_receive(:switch_to_backup)
+          channels.each do |channel|
+            channel.should_receive(:switch_to_backup)
+            channel.should_receive(:touch_managed_process)
+          end
           subject.class.notify_queues_overloaded!
         end
       end
