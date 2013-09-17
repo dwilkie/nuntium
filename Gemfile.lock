@@ -5,6 +5,14 @@ GIT
     fakefs (0.4.1)
 
 GIT
+  remote: git://github.com/instedd/ruby-smpp.git
+  revision: ef520f69ec11b0bded9f887e5d15b0557dc9628a
+  branch: array_pack
+  specs:
+    ruby-smpp (0.6.0)
+      eventmachine (>= 0.10.0)
+
+GIT
   remote: git://github.com/sporkrb/spork-testunit.git
   revision: 8087255296d20dc8e2ff45d4e4c09b09d3078a8d
   specs:
@@ -178,8 +186,6 @@ GEM
       rspec (~> 2.11.0)
     ruby-cache (0.3.0)
     ruby-hmac (0.4.0)
-    ruby-smpp (0.2.1)
-      eventmachine (>= 0.10.0)
     rubyzip (0.9.9)
     selenium-webdriver (2.26.0)
       childprocess (>= 0.2.5)
@@ -248,7 +254,7 @@ DEPENDENCIES
   rgviz-rails
   rspec-rails
   ruby-cache
-  ruby-smpp (= 0.2.1)
+  ruby-smpp!
   smart_asset
   spork!
   spork-testunit!

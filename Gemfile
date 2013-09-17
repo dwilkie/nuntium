@@ -6,7 +6,8 @@ gem "tmail"
 gem 'will_paginate', '~> 3.0'
 gem "guid"
 gem 'twitter', '0.9.4'
-gem 'ruby-smpp', '0.2.1', :require => 'smpp'
+#gem 'ruby-smpp', '0.2.1', :require => 'smpp'
+gem 'ruby-smpp', :git => 'git://github.com/instedd/ruby-smpp.git', :branch => 'array_pack', :require => 'smpp'
 gem "eventmachine"
 gem 'amqp'
 gem 'memcache-client'
