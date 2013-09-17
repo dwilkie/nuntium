@@ -1,3 +1,14 @@
+module SmppTimer
+  def post_init
+    @timer = super
+  end
+
+  def unbind
+    super
+    @timer.cancel
+  end
+end
+
 class SmppService < Service
   def initialize(channel)
     @channel = channel
@@ -16,33 +27,15 @@ end
 
 # Fix to keep the enquire link timer
 class MyTransceiver < Smpp::Transceiver
-  def post_init
-    @timer = super
-  end
-  def unbind
-    super
-    @timer.cancel
-  end
+  include SmppTimer
 end
 
 class MyReceiver < Smpp::Receiver
-  def post_init
-    @timer = super
-  end
-  def unbind
-    super
-    @timer.cancel
-  end
+  include SmppTimer
 end
 
 class MyTransmitter < Smpp::Transmitter
-  def post_init
-    @timer = super
-  end
-  def unbind
-    super
-    @timer.cancel
-  end
+  include SmppTimer
 end
 
 class SmppGateway < SmppTransceiverDelegate
@@ -78,6 +71,7 @@ class SmppGateway < SmppTransceiverDelegate
 
     @rejection_codes = [Smpp::Pdu::Base::ESME_RINVSRCADR, Smpp::Pdu::Base::ESME_RINVDSTADR]
     @rejection_codes += channel.rejection_codes_as_array
+    @bind_type = channel.bind_type
 
     MQ.error { |err| Rails.logger.error err }
   end
@@ -95,6 +89,7 @@ class SmppGateway < SmppTransceiverDelegate
     else
       @receiver = EM.connect(@config[:host], @config[:port], MyReceiver, @config, self)
       @transmitter = EM.connect(@config[:host], @config[:port], MyTransmitter, @config, self)
+      @transceiver = @transmitter
     end
   end
 
@@ -161,9 +156,8 @@ class SmppGateway < SmppTransceiverDelegate
 
   private
 
-  # fix this
   def transceiver_configured?
-    @config[:host] != "117.55.252.213"
+    @bind_type != "transmitter/receiver"
   end
 
   def subscribe_queue
