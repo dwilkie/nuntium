@@ -25,6 +25,26 @@ class MyTransceiver < Smpp::Transceiver
   end
 end
 
+class MyReceiver < Smpp::Receiver
+  def post_init
+    @timer = super
+  end
+  def unbind
+    super
+    @timer.cancel
+  end
+end
+
+class MyTransmitter < Smpp::Transmitter
+  def post_init
+    @timer = super
+  end
+  def unbind
+    super
+    @timer.cancel
+  end
+end
+
 class SmppGateway < SmppTransceiverDelegate
 
   def initialize(channel)
@@ -70,8 +90,12 @@ class SmppGateway < SmppTransceiverDelegate
 
   def connect
     Rails.logger.info "Connecting to SMSC"
-
-    @transceiver = EM.connect(@config[:host], @config[:port], MyTransceiver, @config, self)
+    if transceiver_configured?
+      @transceiver = EM.connect(@config[:host], @config[:port], MyTransceiver, @config, self)
+    else
+      @receiver = EM.connect(@config[:host], @config[:port], MyReceiver, @config, self)
+      @transmitter = EM.connect(@config[:host], @config[:port], MyTransmitter, @config, self)
+    end
   end
 
   def stop
@@ -80,7 +104,12 @@ class SmppGateway < SmppTransceiverDelegate
     self.channel_connected = false
 
     @is_running = false
-    @transceiver.close_connection
+    if transceiver_configured?
+      @transceiver.close_connection
+    else
+      @receiver.close_connection
+      @transmitter.close_connection
+    end
     unsubscribe_queue
   end
 
@@ -131,6 +160,11 @@ class SmppGateway < SmppTransceiverDelegate
   end
 
   private
+
+  # fix this
+  def transceiver_configured?
+    @config[:host] == "117.55.252.213"
+  end
 
   def subscribe_queue
     Rails.logger.info "Subscribing to message queue"
