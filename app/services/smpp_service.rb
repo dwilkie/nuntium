@@ -163,7 +163,7 @@ class SmppGateway < SmppTransceiverDelegate
 
   # fix this
   def transceiver_configured?
-    @config[:host] == "117.55.252.213"
+    @config[:host] != "117.55.252.213"
   end
 
   def subscribe_queue
