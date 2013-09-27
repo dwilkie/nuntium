@@ -69,8 +69,15 @@ class Monit
         if overloaded_channel_name = metadata["channel"]
           overloaded_channel = Channel.find_by_name!(overloaded_channel_name)
           overloaded_channel.switch_to_backup
-          if metadata["previous"] && metadata["current"].to_i >= metadata["previous"].to_i
-            overloaded_channel.touch_managed_process
+          overloaded_channel.touch_managed_process if queue_increasing?(metadata)
+        elsif restart_command = metadata["restart_command"]
+          if queue_increasing?(metadata)
+            command_delimeter = " && "
+            restart_commands = restart_command.split(command_delimeter)
+            restart_command = restart_commands.map { |command|
+              "#{nuntium_service_script} #{command}"
+            }.join(command_delimeter)
+            `#{restart_command}`
           end
         end
       end
@@ -92,6 +99,10 @@ class Monit
       end
     end
     configs.flatten
+  end
+
+  def self.queue_increasing?(metadata)
+    metadata["previous"] && metadata["current"].to_i >= metadata["previous"].to_i
   end
 
   def self.previous_items_in_queue(queue_name)
@@ -127,7 +138,6 @@ class Monit
       script_name = service
     end
 
-    root_dir = rails_root
     current_user = ENV['USER']
 
     script_args = "#{rails_env} #{script_options.join(' ')}".strip
@@ -137,9 +147,9 @@ class Monit
     pid_name += ".#{script_options.join('.')}." unless script_options.empty?
 
     "check process nuntium_#{service}
-      with pidfile #{root_dir}/tmp/pids/#{pid_name}.pid
-      start \"/bin/su - #{current_user} -c '#{root_dir}/script/nuntium_service.sh #{full_script_name}_ctl.rb start #{script_args}'\"
-      stop \"/bin/su - #{current_user} -c '#{root_dir}/script/nuntium_service.sh #{full_script_name}_ctl.rb stop #{script_args}'\"
+      with pidfile #{rails_root}/tmp/pids/#{pid_name}.pid
+      start \"/bin/su - #{current_user} -c '#{nuntium_service_script} #{full_script_name}_ctl.rb start #{script_args}'\"
+      stop \"/bin/su - #{current_user} -c '#{nuntium_service_script} #{full_script_name}_ctl.rb stop #{script_args}'\"
       group nuntium"
   end
 
@@ -219,6 +229,10 @@ class Monit
 
   def self.rails_root
     File.expand_path("../../../", __FILE__)
+  end
+
+  def self.nuntium_service_script
+    "#{rails_root}/script/nuntium_service.sh"
   end
 
   def self.rails_env

@@ -27,6 +27,11 @@ describe Monit do
             "human_name" => "human_queue_name_2",
             "limit" => "30",
             "current" => "34"
+          },
+          "application_queue.1" => {
+            "human_name" => "at_messages",
+            "limit" => "1000",
+            "current" => "1004"
           }
         }
       }
@@ -46,6 +51,10 @@ describe Monit do
 
   def load_yml_file(name, type = :config)
     YAML.load_file(yml_file_path(name, type))
+  end
+
+  def asserted_nuntium_script_runner
+    "#{Rails.root}/script/nuntium_service.sh"
   end
 
   before do
@@ -111,7 +120,7 @@ describe Monit do
     end
 
     def assert_operate_service(output, service_name, action, type = nil, worker_id = nil)
-      operation_string = %{#{action} "/bin/su - #{ENV['USER']} -c '#{Rails.root}/script/nuntium_service.sh #{service_name}_daemon_ctl.rb #{action} #{Rails.env}}
+      operation_string = %{#{action} "/bin/su - #{ENV['USER']} -c '#{asserted_nuntium_script_runner} #{service_name}_daemon_ctl.rb #{action} #{Rails.env}}
       operation_string << " #{type}" if type
       operation_string << " #{worker_id}" if worker_id
       operation_string << %{'"}
@@ -383,7 +392,9 @@ describe Monit do
       end
 
       def assert_alert_content(actual_alert)
-        actual_alert.should =~ /Nuntium Queue\(s\) Overloaded\! \w+ \(\d+\), \w+ \(\d+\)/
+        num_overloaded_queues = config_options[:overloaded_queues][:config]["names"].count
+        queue_regexp = Array.new(num_overloaded_queues, '\w+ \(\d+\)').join(", ")
+        actual_alert.should =~ /Nuntium Queue\(s\) Overloaded\! #{queue_regexp}/
       end
 
       it "should try to send an email to the relevant notify address" do
@@ -404,41 +415,70 @@ describe Monit do
         subject.class.notify_queues_overloaded!
       end
 
-      context "given a channel name is given for the overloaded queue" do
-
-        let(:channel_names) { ["channel1", "channel2"] }
-
-        let(:channels) do
-          channels = []
-          channel_names.each do |channel_name|
-            channels << create_channel(:name => channel_name)
-          end
-          channels
-        end
-
-        def create_channel(options = {})
-          create(:smpp_channel, :bidirectional, {:application => application}.merge(options))
-        end
-
-        let(:config) do
+      context "restarting channels" do
+        def generate_overload_config(&block)
           new_config = config_options[:overloaded_queues][:config].dup
           new_config["names"].each_with_index do |(channel_name, metadata), index|
-            metadata["channel"] = channel_names[index]
             metadata["previous"] = metadata["current"]
+            yield metadata, index
           end
           new_config
         end
 
-        before do
-          Channel.stub(:find_by_name!).and_return(channels[0], channels[1])
+        context "given a restart command is given for the overloaded queue" do
+          let(:sample_restart_command) { "foo 1 2 && bar 3 4" }
+
+          let(:config) do
+            generate_overload_config do |metadata, index|
+              metadata["restart_command"] = sample_restart_command
+            end
+          end
+
+          it "should run the reset command prepended by the nuntium script runner" do
+            asserted_restart_commands = sample_restart_command.split(" && ")
+            asserted_restart_command = asserted_restart_commands.map { |command|
+
+              "#{asserted_nuntium_script_runner} #{command}"
+            }.join(" && ")
+            subject.class.should_receive(:`).with(
+              asserted_restart_command
+            ).exactly(config["names"].count).times
+            subject.class.notify_queues_overloaded!
+          end
         end
 
-        it "should switch to the backup channel" do
-          channels.each do |channel|
-            channel.should_receive(:switch_to_backup)
-            channel.should_receive(:touch_managed_process)
+        context "given a channel name is given for the overloaded queue" do
+          let(:channel_names) { ["channel1", "channel2"] }
+
+          let(:channels) do
+            channels = []
+            channel_names.each do |channel_name|
+              channels << create_channel(:name => channel_name)
+            end
+            channels
           end
-          subject.class.notify_queues_overloaded!
+
+          def create_channel(options = {})
+            create(:smpp_channel, :bidirectional, {:application => application}.merge(options))
+          end
+
+          let(:config) do
+            generate_overload_config do |metadata, index|
+              metadata["channel"] = channel_names[index]
+            end
+          end
+
+          before do
+            Channel.stub(:find_by_name!).and_return(channels[0], channels[1])
+          end
+
+          it "should switch to the backup channel" do
+            channels.each do |channel|
+              channel.should_receive(:switch_to_backup)
+              channel.should_receive(:touch_managed_process)
+            end
+            subject.class.notify_queues_overloaded!
+          end
         end
       end
 
