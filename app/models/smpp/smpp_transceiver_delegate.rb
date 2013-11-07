@@ -40,6 +40,12 @@ class SmppTransceiverDelegate
     send_options[:service_type] = @channel.service_type if @channel.service_type.present?
 
     if msg_text.length > @mt_max_length
+      if @channel.csms_transmission == "auto"
+        logger.info "Nuntium sending concat_mt"
+        @transceiver.send_concat_mt(id, from, to, msg_text, send_options.merge(:data_coding => msg_coding))
+        return
+      end
+
       case @mt_csms_method
       when 'udh'
         send_csms_using_udh id, from, to, msg_coding, msg_text, send_options

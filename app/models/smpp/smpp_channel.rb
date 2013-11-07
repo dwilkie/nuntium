@@ -13,6 +13,7 @@ class SmppChannel < Channel
   configuration_accessor :max_unacknowledged_messages, :default => 5
   configuration_accessor :suspension_codes, :rejection_codes
   configuration_accessor :bind_type
+  configuration_accessor :csms_transmission
 
   validates_presence_of :host, :system_type
   validates_presence_of :user, :password, :default_mo_encoding, :mt_encodings, :mt_csms_method
